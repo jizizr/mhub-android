@@ -50,12 +50,14 @@ jobs:
         run: |
           prerelease=""
           case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
-          cat > dist/notes.md <<NOTES
-          MHub Android $VERSION。需要 Android 13 及以上，以及自托管的 [MHub](https://github.com/jizizr/mhub) 服务端。
+          # What changed comes first: the app's update prompt shows the first lines.
+          if [ -f "release-notes/${VERSION}.md" ]; then cat "release-notes/${VERSION}.md"; echo; fi > dist/notes.md
+          cat >> dist/notes.md <<NOTES
+          MHub Android ${VERSION}。需要 Android 13 及以上；默认连接公共服务器 https://music.op.wiki，也可在设置里改为自托管的 [MHub](https://github.com/jizizr/mhub) 服务端。
 
           直接下载 APK 安装；之后的版本使用同一签名，可覆盖升级。
 
-          首次启动填写服务端地址（保存前会请求 \`/health\`）。
+          App 会自动检查新版本（设置 › 关于）。
           NOTES
           gh release create "$GITHUB_REF_NAME" $prerelease --verify-tag \
             --title "MHub Android $VERSION" --notes-file dist/notes.md \
