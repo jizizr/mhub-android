@@ -1,0 +1,5 @@
+[
+  {"id": "applemusic", "label": "Apple Music", "aliases": ["applemusic", "am"]},
+  {"id": "netease", "label": "网易云音乐", "aliases": ["netease", "163"]},
+  {"id": "tencent", "label": "QQ音乐", "aliases": ["tencent", "qq"]}
+]

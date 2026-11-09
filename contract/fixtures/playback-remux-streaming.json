@@ -1,0 +1,23 @@
+{
+  "id": "applemusic--1440818839--high",
+  "media_revision": "native-v3",
+  "status": "streaming",
+  "platform": "applemusic",
+  "query": "有没有",
+  "track_id": "1440818839",
+  "selected_id": "1440818839",
+  "quality": "high",
+  "include_cover": false,
+  "title": "有没有",
+  "artist": "陈奕迅",
+  "album": "Stranger Under My Skin",
+  "content_type": "audio/mp4",
+  "duration": 246,
+  "format": "m4a",
+  "error": null,
+  "streaming_mode": null,
+  "audio_url": "/api/v1/playbacks/applemusic--1440818839--high/audio?rev=native-v3",
+  "streaming_url": null,
+  "cover_url": "/api/v1/playbacks/applemusic--1440818839--high/cover",
+  "lyrics_url": "/api/v1/playbacks/applemusic--1440818839--high/lyrics"
+}

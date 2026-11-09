@@ -1,0 +1,189 @@
+{
+ "notation": "Generated from frontend/src/utils/word-timing.js estimateLineWords: each case is one line-only lyric line (text, start, end, start of the next main line); expect is [start, end, text] per estimated unit in ms.",
+ "cases": [
+  {
+   "name": "CJK line splits per character, capped at 600 ms",
+   "text": "晴天",
+   "start": 500,
+   "end": 12300,
+   "next": 12300,
+   "expect": [
+    [
+     500,
+     1100,
+     "晴"
+    ],
+    [
+     1100,
+     1700,
+     "天"
+    ]
+   ]
+  },
+  {
+   "name": "units shorter than the cap fill 90% of the gap",
+   "text": "故事的小黄花",
+   "start": 12300,
+   "end": 15000,
+   "next": 15000,
+   "expect": [
+    [
+     12300,
+     12705,
+     "故"
+    ],
+    [
+     12705,
+     13110,
+     "事"
+    ],
+    [
+     13110,
+     13515,
+     "的"
+    ],
+    [
+     13515,
+     13920,
+     "小"
+    ],
+    [
+     13920,
+     14325,
+     "黄"
+    ],
+    [
+     14325,
+     14730,
+     "花"
+    ]
+   ]
+  },
+  {
+   "name": "Latin words weigh by vowel groups; spaces stay with the word before",
+   "text": "Hello beautiful world",
+   "start": 1000,
+   "end": 4000,
+   "next": 4000,
+   "expect": [
+    [
+     1000,
+     1900,
+     "Hello "
+    ],
+    [
+     1900,
+     3250,
+     "beautiful "
+    ],
+    [
+     3250,
+     3700,
+     "world"
+    ]
+   ]
+  },
+  {
+   "name": "leading punctuation joins the first unit",
+   "text": "(oh) 我爱你",
+   "start": 0,
+   "end": 3000,
+   "next": 3000,
+   "expect": [
+    [
+     0,
+     600,
+     "(oh) "
+    ],
+    [
+     600,
+     1200,
+     "我"
+    ],
+    [
+     1200,
+     1800,
+     "爱"
+    ],
+    [
+     1800,
+     2400,
+     "你"
+    ]
+   ]
+  },
+  {
+   "name": "a very short gap uses the 120 ms minimum",
+   "text": "一二三四五六七八九十",
+   "start": 0,
+   "end": 800,
+   "next": 800,
+   "expect": [
+    [
+     0,
+     120,
+     "一"
+    ],
+    [
+     120,
+     240,
+     "二"
+    ],
+    [
+     240,
+     360,
+     "三"
+    ],
+    [
+     360,
+     480,
+     "四"
+    ],
+    [
+     480,
+     600,
+     "五"
+    ],
+    [
+     600,
+     720,
+     "六"
+    ],
+    [
+     720,
+     840,
+     "七"
+    ],
+    [
+     840,
+     960,
+     "八"
+    ],
+    [
+     960,
+     1080,
+     "九"
+    ],
+    [
+     1080,
+     1200,
+     "十"
+    ]
+   ]
+  },
+  {
+   "name": "single unit lines are left as they are",
+   "text": "啊",
+   "start": 0,
+   "end": 2000,
+   "next": 2000,
+   "expect": [
+    [
+     0,
+     2000,
+     "啊"
+    ]
+   ]
+  }
+ ]
+}

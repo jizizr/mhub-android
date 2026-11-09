@@ -1,0 +1,12 @@
+{
+  "platform": "applemusic", "track_id": "1440818839", "available": true,
+  "plain": "[00:01.00]有没有人曾告诉你\n[00:05.50]我很爱你",
+  "translation": "[00:01.20]Has anyone ever told you\n[00:05.40]I love you so",
+  "words": [
+    {"start": 1000, "end": 5000, "words": [[1000, 2000, "有没有"], [2000, 3000, "人曾"], [3000, 5000, "告诉你"]]},
+    {"start": 4000, "end": 5200, "bg": true, "words": [[4000, 5200, "(告诉你)"]]},
+    {"start": 5500, "end": 9000, "words": [[5500, 7000, "我很"], [7000, 9000, "爱你"]]}
+  ],
+  "roman": "",
+  "credits": ["作词：林夕"]
+}

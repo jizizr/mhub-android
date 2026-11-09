@@ -1,0 +1,12 @@
+{
+  "source": "applemusic",
+  "tags": [
+    {"id": "chill", "label": "放松", "subtitle": "适合安静的时候", "playlist_ids": ["pl.1"]}
+  ],
+  "playlists": [
+    {"id": "pl.1", "resource_type": "playlists", "name": "华语流行精选", "curator": "Apple Music 华语", "description": "", "cover": "https://example.test/pl/600x600cc.jpg", "url": "https://music.apple.com/cn/playlist/pl.1", "recommendation_id": "r1"}
+  ],
+  "tracks": [
+    {"platform": "applemusic", "id": "1440818839", "song": "有没有", "singer": "陈奕迅", "cover": "https://example.test/cover/600x600bb.jpg"}
+  ]
+}

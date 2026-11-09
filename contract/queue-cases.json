@@ -1,0 +1,913 @@
+{
+  "notation": "Tracks are written as their id on platform \"t\". A trailing * marks an AutoPlay recommendation. index -1 means nothing is current. Expect keys: queue (exact order), index, repeat, shuffle, autoplay, result (next/previous outcome: an index, \"ended\" or \"autoplay\"), set (same items in any order), first (item at position 0), count (return value of append/playNext).",
+  "cases": [
+    {
+      "name": "replace sets the queue and the starting index, dropping duplicates",
+      "initial": {
+        "queue": [
+          "x"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "replace",
+          "tracks": [
+            "a",
+            "b",
+            "a",
+            "c"
+          ],
+          "start": 1
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "play now inserts the song right after the current one and makes it current",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "playNow",
+          "track": "d"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "d",
+          "b",
+          "c"
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "play now of a queued song moves it after the current one",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "playNow",
+          "track": "c"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "c",
+          "b"
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "play now of an earlier song moves it after the current one",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 2
+      },
+      "ops": [
+        {
+          "op": "playNow",
+          "track": "a"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "b",
+          "c",
+          "a"
+        ],
+        "index": 2
+      }
+    },
+    {
+      "name": "play now on an empty queue starts it",
+      "initial": {
+        "queue": [],
+        "index": -1
+      },
+      "ops": [
+        {
+          "op": "playNow",
+          "track": "a"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a"
+        ],
+        "index": 0
+      }
+    },
+    {
+      "name": "play now of an upcoming recommendation makes it a chosen song",
+      "initial": {
+        "queue": [
+          "a",
+          "r1*",
+          "r2*"
+        ],
+        "index": 0,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "playNow",
+          "track": "r2"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "r2",
+          "r1*"
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "moving a recommendation makes it a chosen song",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "r1*"
+        ],
+        "index": 0,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "move",
+          "from": 2,
+          "to": 1
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "r1",
+          "b"
+        ],
+        "index": 0
+      }
+    },
+    {
+      "name": "append adds to the end and skips songs already queued",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "append",
+          "tracks": [
+            "b",
+            "c",
+            "d"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "index": 0,
+        "count": 2
+      }
+    },
+    {
+      "name": "append goes before the AutoPlay tail",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "r1*",
+          "r2*"
+        ],
+        "index": 0,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "append",
+          "tracks": [
+            "c"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "r1*",
+          "r2*"
+        ],
+        "index": 0
+      }
+    },
+    {
+      "name": "append of an upcoming recommendation promotes it to a chosen song",
+      "initial": {
+        "queue": [
+          "a",
+          "r1*",
+          "r2*"
+        ],
+        "index": 0,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "append",
+          "tracks": [
+            "r2"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "r2",
+          "r1*"
+        ],
+        "index": 0,
+        "count": 1
+      }
+    },
+    {
+      "name": "play next inserts right after the current song",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "playNext",
+          "tracks": [
+            "d",
+            "e"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "d",
+          "e",
+          "b",
+          "c"
+        ],
+        "index": 0,
+        "count": 2
+      }
+    },
+    {
+      "name": "play next moves a song that is already queued instead of dropping it",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "index": 1
+      },
+      "ops": [
+        {
+          "op": "playNext",
+          "tracks": [
+            "d",
+            "a"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "b",
+          "d",
+          "a",
+          "c"
+        ],
+        "index": 0
+      }
+    },
+    {
+      "name": "play next never replaces the current song and turns repeat one into repeat all",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 0,
+        "repeat": "one"
+      },
+      "ops": [
+        {
+          "op": "playNext",
+          "tracks": [
+            "a",
+            "c"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "c",
+          "b"
+        ],
+        "index": 0,
+        "repeat": "all",
+        "count": 1
+      }
+    },
+    {
+      "name": "play next with nothing current queues at the front",
+      "initial": {
+        "queue": [],
+        "index": -1
+      },
+      "ops": [
+        {
+          "op": "playNext",
+          "tracks": [
+            "a",
+            "b"
+          ]
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": -1
+      }
+    },
+    {
+      "name": "removing a song before the current one keeps the current song",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 2
+      },
+      "ops": [
+        {
+          "op": "remove",
+          "index": 0
+        }
+      ],
+      "expect": {
+        "queue": [
+          "b",
+          "c"
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "removing the last current song moves the index back",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 2
+      },
+      "ops": [
+        {
+          "op": "remove",
+          "index": 2
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 1
+      }
+    },
+    {
+      "name": "moving songs keeps following the current song",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "index": 1
+      },
+      "ops": [
+        {
+          "op": "move",
+          "from": 0,
+          "to": 3
+        }
+      ],
+      "expect": {
+        "queue": [
+          "b",
+          "c",
+          "d",
+          "a"
+        ],
+        "index": 0
+      }
+    },
+    {
+      "name": "moving the current song moves the index with it",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "index": 1
+      },
+      "ops": [
+        {
+          "op": "move",
+          "from": 1,
+          "to": 3
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "c",
+          "d",
+          "b"
+        ],
+        "index": 3
+      }
+    },
+    {
+      "name": "next advances; at the end with repeat off playback ends",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 0,
+        "repeat": "off"
+      },
+      "ops": [
+        {
+          "op": "next"
+        },
+        {
+          "op": "next"
+        }
+      ],
+      "expect": {
+        "index": 1,
+        "result": "ended"
+      }
+    },
+    {
+      "name": "a manual next at the end wraps to the start",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 1,
+        "repeat": "off"
+      },
+      "ops": [
+        {
+          "op": "next",
+          "manual": true
+        }
+      ],
+      "expect": {
+        "index": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "repeat all wraps at the end",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 1,
+        "repeat": "all"
+      },
+      "ops": [
+        {
+          "op": "next"
+        }
+      ],
+      "expect": {
+        "index": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "repeat one replays the song when it ends naturally, a manual next still advances",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 0,
+        "repeat": "one"
+      },
+      "ops": [
+        {
+          "op": "next"
+        }
+      ],
+      "expect": {
+        "index": 0,
+        "result": 0
+      }
+    },
+    {
+      "name": "repeat one still advances on a manual next",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 0,
+        "repeat": "one"
+      },
+      "ops": [
+        {
+          "op": "next",
+          "manual": true
+        }
+      ],
+      "expect": {
+        "index": 1,
+        "result": 1
+      }
+    },
+    {
+      "name": "at the end with AutoPlay on the queue asks for recommendations",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 1,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "next"
+        }
+      ],
+      "expect": {
+        "index": 1,
+        "result": "autoplay"
+      }
+    },
+    {
+      "name": "recommendations are appended once and marked",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 1,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "appendRecommendations",
+          "tracks": [
+            "b",
+            "c",
+            "d"
+          ]
+        },
+        {
+          "op": "next"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b",
+          "c*",
+          "d*"
+        ],
+        "index": 2,
+        "result": 2,
+        "count": 2
+      }
+    },
+    {
+      "name": "previous goes back and wraps from the first song",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "previous"
+        }
+      ],
+      "expect": {
+        "index": 2,
+        "result": 2
+      }
+    },
+    {
+      "name": "repeat cycles all, one, off; turning repeat on disables AutoPlay and drops its upcoming songs",
+      "initial": {
+        "queue": [
+          "a",
+          "r1*"
+        ],
+        "index": 0,
+        "repeat": "off",
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "cycleRepeat"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a"
+        ],
+        "repeat": "all",
+        "autoplay": false
+      }
+    },
+    {
+      "name": "repeat cycle order",
+      "initial": {
+        "queue": [
+          "a"
+        ],
+        "index": 0,
+        "repeat": "all"
+      },
+      "ops": [
+        {
+          "op": "cycleRepeat"
+        },
+        {
+          "op": "cycleRepeat"
+        }
+      ],
+      "expect": {
+        "repeat": "off"
+      }
+    },
+    {
+      "name": "turning AutoPlay on turns repeat off",
+      "initial": {
+        "queue": [
+          "a"
+        ],
+        "index": 0,
+        "repeat": "all"
+      },
+      "ops": [
+        {
+          "op": "setAutoplay",
+          "enabled": true
+        }
+      ],
+      "expect": {
+        "repeat": "off",
+        "autoplay": true
+      }
+    },
+    {
+      "name": "turning AutoPlay off removes only the upcoming recommendations",
+      "initial": {
+        "queue": [
+          "r0*",
+          "a",
+          "r1*",
+          "r2*"
+        ],
+        "index": 1,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "setAutoplay",
+          "enabled": false
+        }
+      ],
+      "expect": {
+        "queue": [
+          "r0*",
+          "a"
+        ],
+        "index": 1,
+        "autoplay": false
+      }
+    },
+    {
+      "name": "shuffle keeps the current song first and the same songs",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "index": 2
+      },
+      "ops": [
+        {
+          "op": "toggleShuffle"
+        }
+      ],
+      "expect": {
+        "index": 0,
+        "first": "c",
+        "set": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "shuffle": true
+      }
+    },
+    {
+      "name": "unshuffle restores the original order at the current song",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "index": 2
+      },
+      "ops": [
+        {
+          "op": "toggleShuffle"
+        },
+        {
+          "op": "next"
+        },
+        {
+          "op": "toggleShuffle"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d",
+          "e"
+        ],
+        "shuffle": false
+      }
+    },
+    {
+      "name": "songs added while shuffled survive unshuffle",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c"
+        ],
+        "index": 0
+      },
+      "ops": [
+        {
+          "op": "toggleShuffle"
+        },
+        {
+          "op": "append",
+          "tracks": [
+            "d"
+          ]
+        },
+        {
+          "op": "toggleShuffle"
+        }
+      ],
+      "expect": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "d"
+        ],
+        "index": 0,
+        "shuffle": false
+      }
+    },
+    {
+      "name": "shuffle with AutoPlay keeps recommendations last",
+      "initial": {
+        "queue": [
+          "a",
+          "b",
+          "c",
+          "r1*",
+          "r2*"
+        ],
+        "index": 0,
+        "autoplay": true
+      },
+      "ops": [
+        {
+          "op": "toggleShuffle"
+        }
+      ],
+      "expect": {
+        "first": "a",
+        "set": [
+          "a",
+          "b",
+          "c",
+          "r1*",
+          "r2*"
+        ],
+        "tail": [
+          "r1*",
+          "r2*"
+        ]
+      }
+    },
+    {
+      "name": "clear empties the queue",
+      "initial": {
+        "queue": [
+          "a",
+          "b"
+        ],
+        "index": 1
+      },
+      "ops": [
+        {
+          "op": "clear"
+        }
+      ],
+      "expect": {
+        "queue": [],
+        "index": -1
+      }
+    }
+  ]
+}
