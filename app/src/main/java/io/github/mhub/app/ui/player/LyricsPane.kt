@@ -348,7 +348,15 @@ private fun LyricLineView(
         if (interlude != null) InterludeDots(interlude, now)
         // Finished lines fade back to dim instead of snapping.
         Crossfade(active, animationSpec = tween(450), label = "line") { sung ->
-            WordFlow(line.words, if (sung) now else null, script, line.isBackground)
+            // A line without word timing (one word spanning it: line-only lyrics
+            // outside 估算逐字, or 整行) lights up whole, like the web renderer,
+            // instead of one slow sweep that looks like estimated word timing.
+            val clock = when {
+                !sung -> null
+                line.words.size <= 1 -> lineLit
+                else -> now
+            }
+            WordFlow(line.words, clock, script, line.isBackground)
         }
         if (showsRoman && line.roman.isNotEmpty()) {
             Text(line.roman, color = Color.White.copy(alpha = sideAlpha), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -423,6 +431,8 @@ private fun WordFlow(words: List<LyricWord>, clock: (() -> Long)?, script: Lyric
         }
     }
 }
+
+private val lineLit: () -> Long = { Long.MAX_VALUE }
 
 private fun swell(progress: Float): Float = if (progress > 0f && progress < 1f) sin(PI * progress).toFloat() else 0f
 
