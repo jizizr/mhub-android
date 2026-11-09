@@ -1,0 +1,14 @@
+{
+ "id": "tencent--003OUlho2HcRHC--high",
+ "media_revision": "native-v2",
+ "status": "failed",
+ "platform": "tencent",
+ "query": "x",
+ "quality": "high",
+ "include_cover": false,
+ "error": "Apple Music 暂无可用音源",
+ "audio_url": "/api/v1/playbacks/tencent--003OUlho2HcRHC--high/audio",
+ "cover_url": "/api/v1/playbacks/tencent--003OUlho2HcRHC--high/cover",
+ "lyrics_url": "/api/v1/playbacks/tencent--003OUlho2HcRHC--high/lyrics",
+ "error_code": "unplayable"
+}

@@ -185,4 +185,5 @@
     <string name="casual_listening">随便听 · %1$s</string>
     <string name="made_for_you">为你生成</string>
     <string name="unknown_artist">未知艺人</string>
+    <string name="unplayable_skipped">《%1$s》暂时无法播放，已跳过</string>
 </resources>

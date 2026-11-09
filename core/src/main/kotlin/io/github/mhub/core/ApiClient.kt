@@ -32,6 +32,8 @@ sealed class ApiException(message: String) : Exception(message) {
     class InvalidServer : ApiException("服务器地址无效")
     class Http(val status: Int, detail: String) : ApiException(detail.ifEmpty { "HTTP $status" })
     class PlaybackFailed(message: String) : ApiException(message.ifEmpty { "播放准备失败" })
+    /** No source can ever play the song (server code `unplayable`): skip it, never retry. */
+    class Unplayable(message: String) : ApiException(message.ifEmpty { "暂时无法播放" })
     class TimedOut : ApiException("等待音频超时，请重试")
     /** HTTP 429 that outlasted the caller's wait limit. */
     class RateLimited(val retryAfterMs: Long, val detail: String) :
@@ -42,11 +44,13 @@ sealed class ApiException(message: String) : Exception(message) {
 sealed interface PlaybackReadiness {
     data class Ready(val url: String) : PlaybackReadiness
     data class Wait(val since: String) : PlaybackReadiness
-    data class Failed(val message: String) : PlaybackReadiness
+    data class Failed(val message: String, val unplayable: Boolean = false) : PlaybackReadiness
 
     companion object {
+        const val UNPLAYABLE = "unplayable"
+
         fun evaluate(task: PlaybackTask, server: HttpUrl): PlaybackReadiness = when {
-            task.status == "failed" -> Failed(task.error.orEmpty())
+            task.status == "failed" -> Failed(task.error.orEmpty(), task.errorCode == UNPLAYABLE)
             task.status == "completed" || (task.status == "streaming" && task.streamLength != null) ->
                 MHubClient.resolve(task.audioUrl, server)?.let { Ready(it.toString()) } ?: Failed("音频地址无效")
             else -> Wait(task.status)
@@ -170,7 +174,8 @@ class MHubClient(
         while (true) {
             when (val readiness = PlaybackReadiness.evaluate(task, server)) {
                 is PlaybackReadiness.Ready -> return Prepared(task, readiness.url)
-                is PlaybackReadiness.Failed -> throw ApiException.PlaybackFailed(readiness.message)
+                is PlaybackReadiness.Failed ->
+                    throw if (readiness.unplayable) ApiException.Unplayable(readiness.message) else ApiException.PlaybackFailed(readiness.message)
                 is PlaybackReadiness.Wait -> {
                     if (start.elapsedNow() > deadline) throw ApiException.TimedOut()
                     task = playback(task.id, since = readiness.since)
@@ -223,7 +228,10 @@ class MHubClient(
         var task = createPlayback(track, quality, rateLimit)
         val start = TimeSource.Monotonic.markNow()
         while (task.status != "completed") {
-            if (task.status == "failed") throw ApiException.PlaybackFailed(task.error.orEmpty())
+            if (task.status == "failed") {
+                throw if (task.errorCode == PlaybackReadiness.UNPLAYABLE) ApiException.Unplayable(task.error.orEmpty())
+                else ApiException.PlaybackFailed(task.error.orEmpty())
+            }
             if (start.elapsedNow() > deadline) throw ApiException.TimedOut()
             task = playback(task.id, since = task.status)
         }
@@ -278,7 +286,9 @@ class MHubClient(
                 sessionFrom(it.headers("Set-Cookie"))?.let { token -> session?.token = token.ifEmpty { null } }
                 val text = it.body.string()
                 if (!it.isSuccessful) {
-                    val detail = runCatching { MHubJson.parseToJsonElement(text).jsonObject["detail"]?.jsonPrimitive?.contentOrNull }.getOrNull().orEmpty()
+                    val payload = runCatching { MHubJson.parseToJsonElement(text).jsonObject }.getOrNull()
+                    val detail = payload?.get("detail")?.jsonPrimitive?.contentOrNull.orEmpty()
+                    if (payload?.get("code")?.jsonPrimitive?.contentOrNull == PlaybackReadiness.UNPLAYABLE) throw ApiException.Unplayable(detail)
                     if (it.code == 429) throw ApiException.RateLimited(RateLimit.retryAfterMs(it.header("Retry-After")), detail)
                     throw ApiException.Http(it.code, detail)
                 }

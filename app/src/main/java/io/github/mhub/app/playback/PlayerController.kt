@@ -41,6 +41,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -120,6 +121,11 @@ class PlayerController(private val context: Context, private val model: AppModel
     private var itemCounter = 0
     private var loadJob: Job? = null
     private var prefetchJob: Job? = null
+    /** Writes the prefetched song into the audio cache (web: the next song is cached whole). */
+    private var prefetchDownload: Job? = null
+    /** Songs the server reported as unplayable, for this run (web `unplayableTracks`). */
+    private val unplayable = HashSet<String>()
+    private var consecutiveFailures = 0
     private var lyricsJob: Job? = null
     private var autoplayJob: Deferred<Int>? = null
     private var autoplayStation: String? = null
@@ -302,6 +308,7 @@ class PlayerController(private val context: Context, private val model: AppModel
         val generation = generation
         loadJob?.cancel()
         prefetchJob?.cancel()
+        prefetchDownload?.cancel()
         prefetchedId = null
         entries.clear()
         currentId = null
@@ -337,6 +344,12 @@ class PlayerController(private val context: Context, private val model: AppModel
                 trackBecameCurrent(entry)
             } catch (cancel: CancellationException) {
                 throw cancel
+            } catch (error: ApiException.Unplayable) {
+                if (generation != this@PlayerController.generation) return@launch
+                // Nothing can play this song: move on as if it were not queued.
+                unplayable += track.id
+                model.show(context.getString(R.string.unplayable_skipped, track.title))
+                skipOnFailure()
             } catch (error: Exception) {
                 if (generation != this@PlayerController.generation) return@launch
                 releaseHold()
@@ -346,6 +359,39 @@ class PlayerController(private val context: Context, private val model: AppModel
                 model.show(message)
             }
         }
+    }
+
+    /** Steps past a song that cannot play; after five in a row (or the whole queue) it stops. */
+    private fun skipOnFailure() {
+        consecutiveFailures += 1
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES || consecutiveFailures >= queue.items.size) {
+            consecutiveFailures = 0
+            releaseHold()
+            player.clearMediaItems()
+            _state.update { it.copy(phase = Phase.Paused, wantsPlay = false) }
+            return
+        }
+        advance(manual = true)
+    }
+
+    /** The song a natural end leads to, stepping over songs known to be unplayable. */
+    private fun playableNextIndex(): Int? {
+        if (queue.repeatMode == RepeatMode.One) return null
+        var probe = queue
+        repeat(queue.items.size) {
+            val next = probe.naturalNextIndex ?: return null
+            if (next == queue.index) return null
+            if (queue.items[next].id !in unplayable) return next
+            probe = probe.select(next)
+        }
+        return null
+    }
+
+    /** Data Saver on a metered network: no next-song download (web: `saveData`). */
+    private fun savingData(): Boolean {
+        val connectivity = context.getSystemService(android.net.ConnectivityManager::class.java) ?: return false
+        return connectivity.isActiveNetworkMetered &&
+            connectivity.restrictBackgroundStatus == android.net.ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED
     }
 
     /** A complete cached copy plays directly (offline too); otherwise the server prepares the song. */
@@ -406,6 +452,7 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     private fun trackBecameCurrent(entry: Entry) {
+        consecutiveFailures = 0
         model.recordRecent(entry.track)
         if (entry.track.isRecommendation) {
             autoplayPlayed.addLast(entry.track.sourceId)
@@ -413,7 +460,11 @@ class PlayerController(private val context: Context, private val model: AppModel
         }
         persistSoon()
         scope.launch { fetchRecommendations(force = false) }
-        if (entry.cached) schedulePrefetch()
+        // A song reached by a gapless hand-off may have finished loading while
+        // it was still queued, so no loading event will announce it: check now,
+        // or the song after it is never prefetched and the next hand-off falls
+        // back to a cold load (a silent gap that a frozen background app stalls in).
+        if (entry.cached) schedulePrefetch() else checkFullyLoaded()
     }
 
     /** ExoPlayer buffered the whole current song through the cache. */
@@ -436,14 +487,15 @@ class PlayerController(private val context: Context, private val model: AppModel
      */
     private fun schedulePrefetch() {
         if (prefetchedId != null || prefetchJob?.isActive == true || queue.repeatMode == RepeatMode.One) return
-        val nextIndex = queue.naturalNextIndex ?: return
-        if (nextIndex == queue.index || currentId == null) return
+        if (savingData()) return
+        val nextIndex = playableNextIndex() ?: return
+        if (currentId == null) return
         val track = queue.items[nextIndex]
         val quality = model.settings.quality.value
         val generation = generation
         val current = currentId
         fun stillNext() = generation == this.generation && currentId == current &&
-            queue.naturalNextIndex?.let { queue.items[it].id } == track.id
+            playableNextIndex()?.let { queue.items[it].id } == track.id
         prefetchJob = scope.launch {
             var attempt = 0
             while (true) {
@@ -454,9 +506,16 @@ class PlayerController(private val context: Context, private val model: AppModel
                     entries[item.mediaId] = entry
                     prefetchedId = item.mediaId
                     player.addMediaItem(item)
+                    if (!entry.cached) downloadAhead(item.mediaId, entry)
                     return@launch
                 } catch (cancel: CancellationException) {
                     throw cancel
+                } catch (error: ApiException.Unplayable) {
+                    // The queue now steps over it; warm the song after it instead.
+                    unplayable += track.id
+                    prefetchJob = null
+                    if (generation == this@PlayerController.generation && currentId == current) schedulePrefetch()
+                    return@launch
                 } catch (error: Exception) {
                     // Retry with backoff, never sooner than the server's Retry-After.
                     val retryAfter = (error as? ApiException.RateLimited)?.retryAfterMs ?: 0
@@ -467,8 +526,37 @@ class PlayerController(private val context: Context, private val model: AppModel
         }
     }
 
+    /** Downloads the whole prefetched song into the audio cache under the key ExoPlayer reads. */
+    private fun downloadAhead(mediaId: String, entry: Entry) {
+        prefetchDownload?.cancel()
+        val key = entry.track.cacheKey(entry.quality)
+        prefetchDownload = scope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                val spec = androidx.media3.datasource.DataSpec.Builder().setUri(Uri.parse(entry.url)).setKey(key).build()
+                val writer = androidx.media3.datasource.cache.CacheWriter(cache.dataSourceFactory.createDataSource(), spec, null, null)
+                val job = coroutineContext[Job]
+                val cancel = job?.invokeOnCompletion { if (it != null) writer.cancel() }
+                try {
+                    writer.cache()
+                    true
+                } catch (error: java.io.IOException) {
+                    false
+                } finally {
+                    cancel?.dispose()
+                }
+            }
+            // It may already be playing (the hand-off came first); it still counts.
+            if (!ok || entries[mediaId] !== entry) return@launch
+            if (entry.cached) return@launch
+            entry.cached = true
+            cache.markComplete(key, entry.url, entry.track, entry.quality)
+            if (currentId == mediaId) schedulePrefetch()
+        }
+    }
+
     private fun dropPrefetched() {
         prefetchJob?.cancel()
+        prefetchDownload?.cancel()
         val id = prefetchedId ?: return
         prefetchedId = null
         entries.remove(id)
@@ -480,7 +568,7 @@ class PlayerController(private val context: Context, private val model: AppModel
     /** After a queue edit the prefetched song may no longer be next. */
     private fun queueChanged() {
         persistSoon()
-        val nextId = if (queue.repeatMode == RepeatMode.One) null else queue.naturalNextIndex?.let { queue.items[it].id }
+        val nextId = playableNextIndex()?.let { queue.items[it].id }
         val prefetchedTrack = prefetchedId?.let { entries[it]?.track?.id }
         if (prefetchedId != null && prefetchedTrack != nextId) dropPrefetched()
         if (currentId?.let { entries[it]?.cached } == true) schedulePrefetch()
@@ -512,7 +600,13 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     private fun advance(manual: Boolean) {
-        val step = queue.next(manual)
+        var step = queue.next(manual)
+        // Songs already known to be unplayable are stepped over like absent ones.
+        repeat(queue.items.size) {
+            val index = (step.result as? QueueAdvance.Index)?.index ?: return@repeat
+            if (step.queue.items.getOrNull(index)?.id !in unplayable) return@repeat
+            step = step.queue.next(manual = true)
+        }
         when (step.result) {
             is QueueAdvance.Index -> {
                 setQueue(step.queue)
@@ -543,6 +637,7 @@ class PlayerController(private val context: Context, private val model: AppModel
         generation += 1
         loadJob?.cancel()
         prefetchJob?.cancel()
+        prefetchDownload?.cancel()
         prefetchedId = null
         entries.clear()
         currentId = null
@@ -667,5 +762,9 @@ class PlayerController(private val context: Context, private val model: AppModel
     fun persistNow() {
         val saved = Saved(queue, positionMs, _state.value.source)
         runCatching { stateFile.writeText(MHubJson.encodeToString(Saved.serializer(), saved)) }
+    }
+
+    private companion object {
+        const val MAX_CONSECUTIVE_FAILURES = 5
     }
 }

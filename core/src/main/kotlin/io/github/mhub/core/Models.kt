@@ -149,6 +149,8 @@ data class PlaybackTask(
     val id: String,
     val status: String,
     @SerialName("media_revision") val mediaRevision: String? = null,
+    /** `unplayable`: no source can ever play this song; players skip it. */
+    @SerialName("error_code") val errorCode: String? = null,
     val platform: String? = null,
     val quality: String? = null,
     val title: String? = null,

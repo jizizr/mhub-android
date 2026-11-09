@@ -59,6 +59,9 @@ class ContractTest {
         assertTrue(PlaybackReadiness.evaluate(done, server) is PlaybackReadiness.Ready)
         val failed = MHubJson.decodeFromString(PlaybackTask.serializer(), Contract.fixture("playback-failed.json"))
         assertEquals(PlaybackReadiness.Failed("该歌曲需要付费"), PlaybackReadiness.evaluate(failed, server))
+        // No source can ever play it: players skip it instead of retrying.
+        val unplayable = MHubJson.decodeFromString(PlaybackTask.serializer(), Contract.fixture("playback-unplayable.json"))
+        assertEquals(PlaybackReadiness.Failed("Apple Music 暂无可用音源", unplayable = true), PlaybackReadiness.evaluate(unplayable, server))
     }
 
     @Test fun serverAddressParsing() {

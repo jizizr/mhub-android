@@ -59,7 +59,7 @@ iOS 与 Android 客户端只依赖下面这些接口和字段。改动这些字�
 
 | 任务状态 | 处理 |
 | --- | --- |
-| `failed` | 报错，显示 `error` |
+| `failed` | 报错，显示 `error`；`error_code` 为 `unplayable` 时按「无法播放」跳过（见 design.md「播放器」） |
 | `completed` | 播放 `audio_url` |
 | `streaming` 且有 `stream_length` | 播放 `audio_url`：渐进源边下边播，服务端按声明长度应答 Range |
 | `streaming` 但没有 `stream_length` | 继续等待：解密重封装中的流没有最终长度，系统播放器无法按 Range 读取 |
