@@ -36,6 +36,10 @@ docs/                两端共同的交互规范与接口契约 —— 与 mhub-
 - 改交互或文案先改 `docs/design.md`；改队列行为先在 `contract/queue-cases.json` 加用例；改接口字段先改 `contract/fixtures` 和 `docs/api-contract.md`。Android `core` 与 iOS `MHubKit` 都要通过。
 - 原生端不传 `streaming_mode`；服务端返回可选的 `stream_length` 时可边下边播，老服务端则等任务完成后播放。
 
+## 社区
+
+感谢 [LINUX DO](https://linux.do/) 社区。
+
 ## 许可
 
 AGPL-3.0-only。通过各平台获取的音乐、封面和歌词，版权归权利人所有。
