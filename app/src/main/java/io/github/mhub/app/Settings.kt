@@ -29,7 +29,8 @@ class Settings(context: Context) {
         }
     }
 
-    val serverAddress = pref(prefs.getString("server", "").orEmpty()) { prefs.edit().putString("server", it).apply() }
+    /** The public server unless the user set their own (docs/design.md「设置项」). */
+    val serverAddress = pref(prefs.getString("server", null) ?: DEFAULT_SERVER) { prefs.edit().putString("server", it).apply() }
     val quality = pref(Quality.from(prefs.getString("quality", null)) ?: Quality.High) { prefs.edit().putString("quality", it.wire).apply() }
     val searchPlatform = pref(prefs.getString("search_platform", null) ?: "applemusic") { prefs.edit().putString("search_platform", it).apply() }
     val lyricScript = pref(LyricScript.entries.firstOrNull { it.name.lowercase() == prefs.getString("lyric_script", null) } ?: LyricScript.Original) {
@@ -44,8 +45,14 @@ class Settings(context: Context) {
     val appearance = pref(Appearance.entries.firstOrNull { it.name.lowercase() == prefs.getString("appearance", null) } ?: Appearance.System) {
         prefs.edit().putString("appearance", it.name.lowercase()).apply()
     }
+    /** Check GitHub for a newer release at launch (at most daily). */
+    val autoUpdate = pref(prefs.getBoolean("auto_update", true)) { prefs.edit().putBoolean("auto_update", it).apply() }
     /** Audio cache limit in bytes; the cache picks it up on the next start. */
     val cacheLimit = pref(prefs.getLong("cache_limit", 2L shl 30)) { prefs.edit().putLong("cache_limit", it).apply() }
 
     val serverUrl: HttpUrl? get() = MHubClient.serverUrl(serverAddress.value)
+
+    companion object {
+        const val DEFAULT_SERVER = "https://music.op.wiki"
+    }
 }

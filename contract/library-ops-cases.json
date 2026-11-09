@@ -1,0 +1,452 @@
+{
+ "_comment": "Library sync: local replay of JSON ops (same meaning as the server and web services/sync/library.js), the fewest moves for a drag reorder, and the first-login merge (web planGuestMerge). Playlists are listed newest first; tracks by key.",
+ "apply": [
+  {
+   "name": "create puts the playlist first, drops duplicate songs, blank name becomes untitled",
+   "before": [
+    {
+     "id": "old",
+     "name": "旧",
+     "tracks": [
+      "netease:9"
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "create",
+     "id": "p1",
+     "name": "  ",
+     "tracks": [
+      {
+       "platform": "netease",
+       "source_id": "1",
+       "title": "歌1",
+       "artist": "歌手",
+       "cover": "https://img.example/1.jpg"
+      },
+      {
+       "platform": "netease",
+       "source_id": "2",
+       "title": "歌2",
+       "artist": "歌手",
+       "cover": "https://img.example/2.jpg"
+      },
+      {
+       "platform": "netease",
+       "source_id": "1",
+       "title": "歌1",
+       "artist": "歌手",
+       "cover": "https://img.example/1.jpg"
+      }
+     ]
+    }
+   ],
+   "after": [
+    {
+     "id": "p1",
+     "name": "未命名歌单",
+     "tracks": [
+      "netease:1",
+      "netease:2"
+     ]
+    },
+    {
+     "id": "old",
+     "name": "旧",
+     "tracks": [
+      "netease:9"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "append adds only missing songs at the end",
+   "before": [
+    {
+     "id": "p1",
+     "name": "通勤",
+     "tracks": [
+      "netease:1",
+      "netease:2"
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "append",
+     "id": "p1",
+     "tracks": [
+      {
+       "platform": "netease",
+       "source_id": "2",
+       "title": "歌2",
+       "artist": "歌手",
+       "cover": "https://img.example/2.jpg"
+      },
+      {
+       "platform": "netease",
+       "source_id": "3",
+       "title": "歌3",
+       "artist": "歌手",
+       "cover": "https://img.example/3.jpg"
+      },
+      {
+       "platform": "netease",
+       "source_id": "3",
+       "title": "歌3",
+       "artist": "歌手",
+       "cover": "https://img.example/3.jpg"
+      }
+     ]
+    }
+   ],
+   "after": [
+    {
+     "id": "p1",
+     "name": "通勤",
+     "tracks": [
+      "netease:1",
+      "netease:2",
+      "netease:3"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "rename trims; blank rename becomes untitled",
+   "before": [
+    {
+     "id": "p1",
+     "name": "通勤",
+     "tracks": []
+    }
+   ],
+   "ops": [
+    {
+     "op": "rename",
+     "id": "p1",
+     "name": " 夜跑 "
+    }
+   ],
+   "after": [
+    {
+     "id": "p1",
+     "name": "夜跑",
+     "tracks": []
+    }
+   ]
+  },
+  {
+   "name": "remove deletes every occurrence; delete drops the playlist",
+   "before": [
+    {
+     "id": "p1",
+     "name": "一",
+     "tracks": [
+      "netease:1",
+      "netease:2",
+      "netease:1"
+     ]
+    },
+    {
+     "id": "p2",
+     "name": "二",
+     "tracks": [
+      "netease:1"
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "remove",
+     "id": "p1",
+     "key": "netease:1"
+    },
+    {
+     "op": "delete",
+     "id": "p2"
+    }
+   ],
+   "after": [
+    {
+     "id": "p1",
+     "name": "一",
+     "tracks": [
+      "netease:2"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "move after a key, to the top, and ops on missing playlists are ignored",
+   "before": [
+    {
+     "id": "p1",
+     "name": "一",
+     "tracks": [
+      "netease:1",
+      "netease:2",
+      "netease:3",
+      "netease:4"
+     ]
+    }
+   ],
+   "ops": [
+    {
+     "op": "move",
+     "id": "p1",
+     "key": "netease:4",
+     "after": null
+    },
+    {
+     "op": "move",
+     "id": "p1",
+     "key": "netease:1",
+     "after": "netease:3"
+    },
+    {
+     "op": "append",
+     "id": "missing",
+     "tracks": [
+      {
+       "platform": "netease",
+       "source_id": "5",
+       "title": "歌5",
+       "artist": "歌手",
+       "cover": "https://img.example/5.jpg"
+      }
+     ]
+    },
+    {
+     "op": "move",
+     "id": "p1",
+     "key": "netease:7",
+     "after": null
+    }
+   ],
+   "after": [
+    {
+     "id": "p1",
+     "name": "一",
+     "tracks": [
+      "netease:4",
+      "netease:2",
+      "netease:3",
+      "netease:1"
+     ]
+    }
+   ]
+  }
+ ],
+ "reorder": [
+  {
+   "name": "unchanged",
+   "from": [
+    "netease:1",
+    "netease:2",
+    "netease:3"
+   ],
+   "to": [
+    "netease:1",
+    "netease:2",
+    "netease:3"
+   ],
+   "moves": []
+  },
+  {
+   "name": "drag the last song to the top",
+   "from": [
+    "netease:1",
+    "netease:2",
+    "netease:3",
+    "netease:4"
+   ],
+   "to": [
+    "netease:4",
+    "netease:1",
+    "netease:2",
+    "netease:3"
+   ],
+   "moves": [
+    {
+     "key": "netease:4",
+     "after": null
+    }
+   ]
+  },
+  {
+   "name": "drag one song down",
+   "from": [
+    "netease:1",
+    "netease:2",
+    "netease:3",
+    "netease:4"
+   ],
+   "to": [
+    "netease:2",
+    "netease:3",
+    "netease:1",
+    "netease:4"
+   ],
+   "moves": [
+    {
+     "key": "netease:1",
+     "after": "netease:3"
+    }
+   ]
+  },
+  {
+   "name": "reverse keeps the longest increasing run",
+   "from": [
+    "netease:1",
+    "netease:2",
+    "netease:3"
+   ],
+   "to": [
+    "netease:3",
+    "netease:2",
+    "netease:1"
+   ],
+   "moves": [
+    {
+     "key": "netease:3",
+     "after": null
+    },
+    {
+     "key": "netease:2",
+     "after": "netease:3"
+    }
+   ]
+  }
+ ],
+ "merge": [
+  {
+   "name": "same name with enough overlap merges the missing songs; others are created",
+   "local": [
+    {
+     "id": "l1",
+     "name": "通勤 歌单!",
+     "source_url": "",
+     "tracks": [
+      "netease:1",
+      "netease:2",
+      "netease:3",
+      "netease:4"
+     ]
+    },
+    {
+     "id": "l2",
+     "name": "新的",
+     "source_url": "",
+     "tracks": [
+      "netease:8"
+     ]
+    }
+   ],
+   "cloud": [
+    {
+     "id": "c1",
+     "name": "通勤歌单",
+     "source_url": "",
+     "tracks": [
+      "netease:1",
+      "netease:2",
+      "netease:3"
+     ]
+    }
+   ],
+   "create": [
+    "l2"
+   ],
+   "merge": [
+    {
+     "local": "l1",
+     "cloud": "c1",
+     "keys": [
+      "netease:4"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "same name but little overlap is a different playlist",
+   "local": [
+    {
+     "id": "l1",
+     "name": "通勤",
+     "source_url": "",
+     "tracks": [
+      "netease:1",
+      "netease:2",
+      "netease:3"
+     ]
+    }
+   ],
+   "cloud": [
+    {
+     "id": "c1",
+     "name": "通勤",
+     "source_url": "",
+     "tracks": [
+      "netease:1",
+      "netease:9"
+     ]
+    }
+   ],
+   "create": [
+    "l1"
+   ],
+   "merge": []
+  },
+  {
+   "name": "same source link merges; nothing missing still counts as merged",
+   "local": [
+    {
+     "id": "l1",
+     "name": "导入的",
+     "source_url": "https://music.example/list/1",
+     "tracks": [
+      "netease:1"
+     ]
+    }
+   ],
+   "cloud": [
+    {
+     "id": "c1",
+     "name": "别的名字",
+     "source_url": "https://music.example/list/1",
+     "tracks": [
+      "netease:1",
+      "netease:2"
+     ]
+    }
+   ],
+   "create": [],
+   "merge": []
+  },
+  {
+   "name": "empty local playlist matches by name",
+   "local": [
+    {
+     "id": "l1",
+     "name": "空",
+     "source_url": "",
+     "tracks": []
+    }
+   ],
+   "cloud": [
+    {
+     "id": "c1",
+     "name": "空",
+     "source_url": "",
+     "tracks": [
+      "netease:1"
+     ]
+    }
+   ],
+   "create": [],
+   "merge": []
+  }
+ ]
+}

@@ -2,7 +2,7 @@
 
 iOS 与 Android 客户端只依赖下面这些接口和字段。改动这些字段时同步更新 `contract/fixtures/` 下的样例；两端单测都会解码这些样例，字段被改名或删掉会同时在两端失败。
 
-服务端地址由用户在客户端里填写（自托管），客户端不内置任何部署地址。相对 URL（`/api/v1/...`）按服务端地址解析；绝对 URL（媒体域）原样使用。
+服务端地址默认为公共服务器 `https://music.op.wiki`，用户可在设置里改为自托管地址；除此之外客户端不内置其他部署地址。相对 URL（`/api/v1/...`）按服务端地址解析；绝对 URL（媒体域）原样使用。
 
 ## 用到的接口
 
@@ -21,6 +21,38 @@ iOS 与 Android 客户端只依赖下面这些接口和字段。改动这些字�
 
 原生客户端**不传** `streaming_mode`。`wasm_alac` 只属于网页的 WASM 解码器；原生端用系统解码器（AVFoundation／MediaCodec）。
 
+## 账号与同步
+
+服务端开了账号功能时才用到（`/api/v1/auth/config` 返回 `{"enabled":bool,"turnstile_site_key":""}`；站点密钥非空表示注册需要人机验证，原生端此时把「注册」改为打开网页）。会话令牌在 `Set-Cookie: mhub_session=…`；带 Cookie 的写请求必须同时带 `x-mhub-client: 1`。
+
+| 用途 | 请求 | 响应样例 |
+| --- | --- | --- |
+| 当前用户 | `GET /api/v1/auth/me` | `auth-me.json`（未登录时 `{"user":null}`） |
+| 注册 | `POST /api/v1/auth/register`，JSON `{username, password, device_id, device_name}` | `auth-register.json`（含 8 个 `recovery_codes`） |
+| 密码登录 | `POST /api/v1/auth/password/login`，JSON `{username, password, device_id, device_name}` | `{"user":{"id","username"}}`，401 为用户名或密码错误 |
+| 恢复码登录 | `POST /api/v1/auth/recovery/login`，JSON `{username, code, device_id, device_name}` | 同上 |
+| 退出 | `POST /api/v1/auth/logout`，`{}` | `{"ok":true}` |
+| 歌单快照 | `GET /api/v1/sync/library/json` | `library-snapshot.json` |
+| 歌单操作 | `POST /api/v1/sync/library/json`，JSON `{"ops":[…]}`（一次最多 500 个） | 新快照，同上 |
+
+快照与网页 `readLibrary()` 同形：歌单按创建时间新到旧，每首歌是 `{key, platform, source_id, title, artist, cover}`（`key` 即曲目身份）。时间戳为毫秒。操作：
+
+```json
+{"op":"create","id":"<uuid>","name":"…","source_url":"","source_platform":"","tracks":[{platform,source_id,title,artist,cover}]}
+{"op":"append","id":"…","tracks":[…]}
+{"op":"rename","id":"…","name":"…"}
+{"op":"delete","id":"…"}
+{"op":"remove","id":"…","key":"platform:source_id"}
+{"op":"move","id":"…","key":"…","after":"platform:source_id"|null}
+```
+
+## 下载与更新
+
+| 用途 | 请求 |
+| --- | --- |
+| 下载音频 | 播放任务 `completed` 后 `GET /api/v1/playbacks/:id/audio`（完整文件，`Content-Disposition` 带文件名） |
+| 检查更新 | `GET https://api.github.com/repos/jizizr/mhub-<ios|android>/releases?per_page=10`，用到 `tag_name`、`name`、`body`、`html_url`、`draft`、`prerelease`、`assets[].name`、`assets[].browser_download_url`（样例 `github-releases.json`） |
+
 ## 播放任务何时可播
 
 两端用同一条规则（`PlaybackReadiness`），由 `playback-*.json` 样例覆盖：
@@ -36,6 +68,24 @@ iOS 与 Android 客户端只依赖下面这些接口和字段。改动这些字�
 `completed` 的 Apple Music 无损任务，`/audio` 提供服务端生成的 FLAC 兼容版本，两端系统解码器都能直接播放。
 
 `stream_length` 是为原生端新增的可选字段，网页不读取它，老服务端不返回它（此时原生端退回「等待完成」，仍然可用）。
+
+## 限流（HTTP 429）
+
+回源平台的请求（缓存未命中的 `POST /playbacks`、搜索、歌词、曲目信息、歌单解析、推荐）按 IP 计额度；状态轮询、`/audio*`、`/cover` 不计。额度 3 秒内能补上的，服务端挂起后放行；否则返回：
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 7
+
+{"detail":"请求过于频繁，请稍后再试"}
+```
+
+被拒的请求不扣额度，响应字段和请求参数不变。客户端统一处理（iOS `RateLimit`／Android `RateLimit`，用例 `contract/rate-limit-cases.json`）：
+
+- `Retry-After` 是秒数或 HTTP 日期，换算成毫秒，缺失、无法解析或小于 1 秒时按 1 秒算。
+- 累计等待（已等的加上这次要等的）不超过调用方给的上限就等待后原样重试，等待可取消；超过上限抛出带 `retryAfterMs` 的限流错误，文案为服务端 `detail` 加「（约 N 秒后可重试）」，N 向上取整。
+- 上限：普通请求 10 秒；用户点播的 `POST /playbacks` 2 分钟；预取 0；导入歌单 5 分钟。
+- 预取被限流后，下次重试间隔 = max(退避表 [5, 15, 30] 秒中第 attempt 项（超出取最后一项）, Retry-After)。
 
 ## 身份与缓存键
 

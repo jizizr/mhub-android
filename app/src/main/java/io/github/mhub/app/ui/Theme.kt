@@ -62,8 +62,10 @@ fun MHubTheme(appearance: Appearance, content: @Composable () -> Unit) {
     }
     val scheme = glasmioColorScheme(dark, MHubAccent)
     GlasmioIconProvider(resolver = MHubIconResolver) {
-        // Glass resolves light/dark from what is behind it, like iOS 26 Liquid Glass.
-        GlasmioTheme(isDark = dark, colorScheme = scheme, colors = defaultGlassColors(dark, MHubAccent), appearance = GlassAppearance(adaptiveColorScheme = true)) {
+        // Glass follows the app theme. Glasmio's adaptive mode (light/dark from what
+        // is behind the glass) re-renders the page into a probe and reads it back up
+        // to 30 times a second on the RenderThread, which made scrolling stutter.
+        GlasmioTheme(isDark = dark, colorScheme = scheme, colors = defaultGlassColors(dark, MHubAccent), appearance = GlassAppearance()) {
             // iOS press highlight instead of Material ripples, app-wide.
             CompositionLocalProvider(LocalIndication provides IosHighlight, content = content)
         }

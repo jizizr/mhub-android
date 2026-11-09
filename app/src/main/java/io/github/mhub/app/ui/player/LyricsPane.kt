@@ -20,10 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,15 +33,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameMillis
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -92,6 +91,51 @@ private data class Interlude(val before: Int, val start: Long, val end: Long)
 
 /** Spring that matches the iPhone lyrics (SwiftUI response 0.62, damping 0.84). */
 private fun <T> lyricSpring() = spring<T>(dampingRatio = 0.84f, stiffness = 103f)
+
+/**
+ * Player position that moves on every frame. ExoPlayer reports its position in
+ * steps tens of milliseconds apart, so a sweep that follows it directly stutters
+ * at an uneven rate. Between reports this runs on the frame clock; each new
+ * report pulls it a quarter of the way back into line, and what it shows never
+ * runs backwards (a late report would otherwise drag a sung word back). Only a
+ * real jump (a seek, a new song) of more than [JUMP_MS] moves it at once.
+ */
+private class LyricClock(private val player: PlayerController) {
+    val state = mutableLongStateOf(player.positionMs)
+    private var anchorMs = state.longValue
+    private var anchorNanos = 0L
+    private var lastReported = Long.MIN_VALUE
+    private var wasAdvancing = false
+
+    val now: Long get() = state.longValue
+
+    fun tick(frameNanos: Long) {
+        val reported = player.positionMs
+        val advancing = player.isAdvancing
+        val predicted = when {
+            anchorNanos == 0L -> reported
+            wasAdvancing -> anchorMs + (frameNanos - anchorNanos) / 1_000_000
+            else -> anchorMs
+        }
+        val error = reported - predicted
+        when {
+            anchorNanos == 0L || abs(error) > JUMP_MS -> {
+                anchorMs = reported; anchorNanos = frameNanos; state.longValue = reported
+                lastReported = reported; wasAdvancing = advancing
+                return
+            }
+            // Paused, or just resumed: hold what is shown and run on from here.
+            !advancing || !wasAdvancing -> { anchorMs = predicted; anchorNanos = frameNanos }
+            reported != lastReported -> { anchorMs = predicted + error / 4; anchorNanos = frameNanos }
+        }
+        lastReported = reported
+        wasAdvancing = advancing
+        val shown = if (advancing) anchorMs + (frameNanos - anchorNanos) / 1_000_000 else anchorMs
+        if (shown > state.longValue) state.longValue = shown
+    }
+
+    private companion object { const val JUMP_MS = 400L }
+}
 
 /**
  * Apple Music style lyrics, the same behaviour as the iPhone `LyricsPane`:
@@ -144,13 +188,29 @@ private fun SyncedLyrics(lyrics: Lyrics, script: LyricScript, showsTranslation: 
     val manual = remember { Animatable(0f) }
     var browsing by remember { mutableStateOf(false) }
     var releaseAt by remember { mutableLongStateOf(0L) }
+    // Long-pressing a line opens lyrics sharing with that line chosen.
+    var sharing by remember { mutableStateOf<Int?>(null) }
+    sharing?.let { line ->
+        graph.player.state.value.current?.let { track -> LyricsShareSheet(track, line) { sharing = null } }
+    }
     val spacing = with(density) { 30.dp.toPx() }
+    val clock = remember { LyricClock(graph.player) }
+    val now = remember(clock) { { clock.now } }
+
+    // One clock for the whole pane: per frame while the song sounds, otherwise
+    // a slow check so a paused pane does not draw at all.
+    LaunchedEffect(clock) {
+        while (true) {
+            if (graph.player.isAdvancing) withFrameNanos(clock::tick)
+            else { clock.tick(System.nanoTime()); delay(100) }
+        }
+    }
 
     // Poll the player clock cheaply; only the sung line redraws every frame.
     LaunchedEffect(lyrics) {
         val mainLines = lyrics.lines.filter { !it.isBackground }
         while (true) {
-            val now = graph.player.positionMs
+            val now = clock.now
             val active = lyrics.activeIndex(now)
             var next = active ?: 0
             var gap: Interlude? = null
@@ -244,7 +304,11 @@ private fun SyncedLyrics(lyrics: Lyrics, script: LyricScript, showsTranslation: 
                             heights[line.id] = it.height
                         }
                         .graphicsLayer { translationY = y.value + manual.value + dragOffset }
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                        .combinedClickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onLongClick = { if (!line.isBackground) sharing = line.id },
+                        ) {
                             graph.player.seek(line.start)
                             browsing = false
                             scope.launch { manual.animateTo(0f, lyricSpring()) }
@@ -252,7 +316,7 @@ private fun SyncedLyrics(lyrics: Lyrics, script: LyricScript, showsTranslation: 
                 ) {
                     LyricLineView(
                         line, active, if (browsing) 0 else distance,
-                        interlude?.takeIf { it.before == line.id }, script, showsTranslation, showsRoman,
+                        interlude?.takeIf { it.before == line.id }, script, showsTranslation, showsRoman, now,
                     )
                 }
             }
@@ -266,7 +330,7 @@ private fun SyncedLyrics(lyrics: Lyrics, script: LyricScript, showsTranslation: 
 @Composable
 private fun LyricLineView(
     line: LyricLine, active: Boolean, distance: Int, interlude: Interlude?, script: LyricScript,
-    showsTranslation: Boolean, showsRoman: Boolean,
+    showsTranslation: Boolean, showsRoman: Boolean, now: () -> Long,
 ) {
     val scale by animateFloatAsState(if (active) 1f else 0.97f, lyricSpring(), label = "scale")
     // No blur (it smears on Android); lines further than two away dim a little more.
@@ -281,10 +345,10 @@ private fun LyricLineView(
             .semantics { contentDescription = ScriptConverter.convert(line.text, script) },
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        if (interlude != null) InterludeDots(interlude)
+        if (interlude != null) InterludeDots(interlude, now)
         // Finished lines fade back to dim instead of snapping.
         Crossfade(active, animationSpec = tween(450), label = "line") { sung ->
-            if (sung) ActiveWords(line, script) else WordFlow(line.words, Long.MIN_VALUE, script, line.isBackground, resting = true)
+            WordFlow(line.words, if (sung) now else null, script, line.isBackground)
         }
         if (showsRoman && line.roman.isNotEmpty()) {
             Text(line.roman, color = Color.White.copy(alpha = sideAlpha), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -295,30 +359,31 @@ private fun LyricLineView(
     }
 }
 
-@Composable
-private fun ActiveWords(line: LyricLine, script: LyricScript) {
-    val graph = LocalGraph.current
-    val now by produceState(graph.player.positionMs) {
-        while (true) withFrameMillis { value = graph.player.positionMs }
-    }
-    WordFlow(line.words, now, script, line.isBackground)
-}
-
-/** Words wrap like text; each is a dim layer under a bright layer revealed by a feathered sweep. */
+/**
+ * Words wrap like text; each is a dim layer under a bright layer revealed by a
+ * feathered sweep. [clock] is null for a resting line. The clock is read only in
+ * layer and draw blocks, so a sung line redraws each frame without recomposing,
+ * and only the word being sung pays for an offscreen layer.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun WordFlow(words: List<LyricWord>, now: Long, script: LyricScript, background: Boolean, resting: Boolean = false) {
+private fun WordFlow(words: List<LyricWord>, clock: (() -> Long)?, script: LyricScript, background: Boolean) {
     val size = if (background) 22.sp else 32.sp
     val base = TextStyle(fontSize = size, fontWeight = FontWeight.Bold, lineHeight = if (background) 28.sp else 40.sp)
+    val glow = remember(base) { base.copy(shadow = Shadow(Color.White.copy(alpha = 0.55f), blurRadius = 24f)) }
     FlowRow(verticalArrangement = Arrangement.spacedBy(if (background) 2.dp else 4.dp)) {
         words.forEach { word ->
-            val text = ScriptConverter.convert(word.text, script)
-            val progress = wordProgress(word, now)
-            val held = !resting && word.end - word.start >= 1000 && progress > 0f && progress < 1f
-            val swell = if (held) sin(PI * progress).toFloat() else 0f
+            val text = remember(word.text, script) { ScriptConverter.convert(word.text, script) }
+            if (clock == null) {
+                Text(text, style = base, color = Color.White.copy(alpha = 0.3f))
+                return@forEach
+            }
+            val held = word.end - word.start >= 1000
             Box(
                 Modifier.graphicsLayer {
                     // Sung words float up slightly; long held words swell.
+                    val progress = wordProgress(word, clock())
+                    val swell = if (held) swell(progress) else 0f
                     translationY = -2.5f * density * ease(progress)
                     scaleX = 1f + 0.05f * swell
                     scaleY = 1f + 0.05f * swell
@@ -326,13 +391,18 @@ private fun WordFlow(words: List<LyricWord>, now: Long, script: LyricScript, bac
                 },
             ) {
                 Text(text, style = base, color = Color.White.copy(alpha = 0.3f))
-                if (progress > 0f) {
-                    Text(
-                        text,
-                        style = base.copy(shadow = if (swell > 0f) Shadow(Color.White.copy(alpha = 0.55f * swell), blurRadius = 24f) else null),
-                        color = Color.White,
-                        modifier = Modifier.graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen).drawWithContent {
+                Box(
+                    Modifier
+                        .graphicsLayer {
+                            val progress = wordProgress(word, clock())
+                            alpha = if (progress > 0f) 1f else 0f
+                            compositingStrategy = if (progress < 1f) CompositingStrategy.Offscreen else CompositingStrategy.Auto
+                        }
+                        .drawWithContent {
+                            val progress = wordProgress(word, clock())
+                            if (progress <= 0f) return@drawWithContent
                             drawContent()
+                            if (progress >= 1f) return@drawWithContent
                             val feather = 0.3f
                             val edge = progress * (1 + feather)
                             drawRect(
@@ -343,12 +413,18 @@ private fun WordFlow(words: List<LyricWord>, now: Long, script: LyricScript, bac
                                 blendMode = BlendMode.DstIn,
                             )
                         },
-                    )
+                ) {
+                    Text(text, style = base, color = Color.White)
+                    if (held) {
+                        Text(text, style = glow, color = Color.White, modifier = Modifier.graphicsLayer { alpha = swell(wordProgress(word, clock())) })
+                    }
                 }
             }
         }
     }
 }
+
+private fun swell(progress: Float): Float = if (progress > 0f && progress < 1f) sin(PI * progress).toFloat() else 0f
 
 private fun wordProgress(word: LyricWord, now: Long): Float = when {
     now >= word.end -> 1f
@@ -360,21 +436,25 @@ private fun ease(t: Float): Float = 1f - (1f - t.coerceIn(0f, 1f)).pow(3)
 
 /** Three dots that fill one after another across an instrumental gap and breathe while waiting. */
 @Composable
-private fun InterludeDots(interlude: Interlude) {
-    val graph = LocalGraph.current
-    val frame by produceState(0L) { while (true) withFrameMillis { value = it } }
-    val progress = ((graph.player.positionMs - interlude.start).toFloat() / (interlude.end - interlude.start).coerceAtLeast(1)).coerceIn(0f, 1f)
-    val breath = 1f + 0.08f * sin(frame / 1000.0 * 2.4).toFloat()
-    val closing = if (progress > 0.94f) 1f - (progress - 0.94f) * 4f else 1f
+private fun InterludeDots(interlude: Interlude, clock: () -> Long) {
+    fun progress() = ((clock() - interlude.start).toFloat() / (interlude.end - interlude.start).coerceAtLeast(1)).coerceIn(0f, 1f)
     Row(
         Modifier.padding(vertical = 6.dp).graphicsLayer {
+            val now = clock()
+            val breath = 1f + 0.08f * sin(now / 1000.0 * 2.4).toFloat()
+            val p = progress()
+            val closing = if (p > 0.94f) 1f - (p - 0.94f) * 4f else 1f
             scaleX = breath * closing; scaleY = breath * closing; transformOrigin = TransformOrigin(0f, 0.5f)
         },
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         repeat(3) { index ->
-            val fill = (progress * 3 - index).coerceIn(0f, 1f)
-            Box(Modifier.size(13.dp).background(Color.White.copy(alpha = 0.3f + 0.7f * fill), CircleShape))
+            Box(
+                Modifier.size(13.dp).drawBehind {
+                    val fill = (progress() * 3 - index).coerceIn(0f, 1f)
+                    drawCircle(Color.White.copy(alpha = 0.3f + 0.7f * fill))
+                },
+            )
         }
     }
 }

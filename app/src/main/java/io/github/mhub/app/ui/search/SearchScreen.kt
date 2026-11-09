@@ -74,6 +74,7 @@ fun SearchScreen(listState: LazyListState) {
         listState = listState,
         bottomPadding = LocalBottomChrome.current,
         backgroundColor = plainBackground(),
+        actions = { io.github.mhub.app.ui.components.SettingsButton() },
     ) {
         item("search") {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

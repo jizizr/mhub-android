@@ -4,6 +4,7 @@ import android.app.PendingIntent
 import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.ForwardingPlayer
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaSession
@@ -60,6 +61,9 @@ internal class SessionPlayer(player: Player, private val controller: PlayerContr
         super.getAvailableCommands().buildUpon().addAll(*queueCommands.toIntArray()).build()
 
     override fun isCommandAvailable(command: Int): Boolean = command in queueCommands || super.isCommandAvailable(command)
+
+    /** While a silent placeholder holds the session, show the song being prepared. */
+    override fun getMediaMetadata(): MediaMetadata = controller.holdMetadata ?: super.getMediaMetadata()
 
     override fun seekToNext() = controller.next()
     override fun seekToNextMediaItem() = controller.next()

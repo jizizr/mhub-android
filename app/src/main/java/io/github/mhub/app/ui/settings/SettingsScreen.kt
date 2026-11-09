@@ -39,15 +39,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kyant.capsule.ContinuousCapsule
 import com.kyant.capsule.ContinuousRoundedRectangle
-import io.github.mhub.app.Appearance
 import io.github.mhub.app.BuildConfigCompat
 import io.github.mhub.app.R
 import io.github.mhub.app.ui.LocalBottomChrome
 import io.github.mhub.app.ui.LocalGraph
 import io.github.mhub.app.ui.LocalNavigator
 import io.github.mhub.app.ui.components.byteText
-import io.github.mhub.core.LyricScript
-import io.github.mhub.core.LyricWordMode
 import io.github.mhub.core.MHubClient
 import io.github.mhub.core.Quality
 import io.github.neoruaa.glasmio.core.IosTypography
@@ -87,10 +84,6 @@ fun SettingsScreen() {
     val server by settings.serverAddress.state.collectAsStateWithLifecycle()
     val quality by settings.quality.state.collectAsStateWithLifecycle()
     val platform by settings.searchPlatform.state.collectAsStateWithLifecycle()
-    val script by settings.lyricScript.state.collectAsStateWithLifecycle()
-    val translation by settings.showTranslation.state.collectAsStateWithLifecycle()
-    val roman by settings.showRoman.state.collectAsStateWithLifecycle()
-    val appearance by settings.appearance.state.collectAsStateWithLifecycle()
     val limit by settings.cacheLimit.state.collectAsStateWithLifecycle()
     val platforms by graph.model.platforms.collectAsStateWithLifecycle()
     val player by graph.player.state.collectAsStateWithLifecycle()
@@ -105,6 +98,7 @@ fun SettingsScreen() {
         onNavigateBack = { navigator.pop() },
         navigateBackContentDescription = stringResource(R.string.back),
     ) {
+        item("account") { AccountSection() }
         item("server") {
             GlasmioPreferenceGroupTitle(stringResource(R.string.server))
             GlasmioGroupedList {
@@ -162,48 +156,8 @@ fun SettingsScreen() {
                 )
             }
         }
-        item("lyrics") {
-            GlasmioPreferenceGroupTitle(stringResource(R.string.lyrics))
-            val wordMode by settings.lyricWordMode.state.collectAsStateWithLifecycle()
-            GlasmioGroupedList {
-                GlasmioListPreference(
-                    title = { Text(stringResource(R.string.lyric_word_mode)) },
-                    selectedValue = wordMode,
-                    values = LyricWordMode.entries,
-                    valueText = { it.label },
-                    onValueSelected = settings.lyricWordMode::set,
-                    showTopSeparator = false,
-                )
-                GlasmioListPreference(
-                    title = { Text(stringResource(R.string.lyric_script)) },
-                    selectedValue = script,
-                    values = LyricScript.entries,
-                    valueText = { it.label },
-                    onValueSelected = settings.lyricScript::set,
-                )
-                GlasmioSwitchPreference(title = { Text(stringResource(R.string.show_translation)) }, checked = translation, onCheckedChange = settings.showTranslation::set)
-                GlasmioSwitchPreference(title = { Text(stringResource(R.string.show_roman)) }, checked = roman, onCheckedChange = settings.showRoman::set)
-            }
-            GlasmioGroupedTableFooter(stringResource(R.string.lyric_word_mode_footer))
-        }
-        item("appearance") {
-            GlasmioPreferenceGroupTitle(stringResource(R.string.appearance))
-            val labels = mapOf(
-                Appearance.System to stringResource(R.string.appearance_system),
-                Appearance.Light to stringResource(R.string.appearance_light),
-                Appearance.Dark to stringResource(R.string.appearance_dark),
-            )
-            GlasmioGroupedList {
-                GlasmioListPreference(
-                    title = { Text(stringResource(R.string.appearance)) },
-                    selectedValue = appearance,
-                    values = Appearance.entries,
-                    valueText = { labels.getValue(it) },
-                    onValueSelected = settings.appearance::set,
-                    showTopSeparator = false,
-                )
-            }
-        }
+        item("lyrics") { LyricsSettingsGroup() }
+        item("appearance") { AppearanceSettingsGroup() }
         item("storage") {
             GlasmioPreferenceGroupTitle(stringResource(R.string.storage))
             GlasmioGroupedList {
@@ -222,6 +176,14 @@ fun SettingsScreen() {
             GlasmioPreferenceGroupTitle(stringResource(R.string.about))
             GlasmioGroupedList {
                 GlasmioListRow(stringResource(R.string.version), detail = BuildConfigCompat.versionName(context), showTopSeparator = false)
+                val autoUpdate by settings.autoUpdate.state.collectAsStateWithLifecycle()
+                val checkingUpdate by graph.updates.checking.collectAsStateWithLifecycle()
+                GlasmioSwitchPreference(title = { Text(stringResource(R.string.auto_update)) }, checked = autoUpdate, onCheckedChange = settings.autoUpdate::set)
+                GlasmioListRow(
+                    stringResource(if (checkingUpdate) R.string.checking_update else R.string.check_update),
+                    titleColor = LocalGlassColors.current.accent, enabled = !checkingUpdate, showDisclosure = false,
+                    onClick = { scope.launch { graph.updates.checkNow()?.let(graph.model::show) } },
+                )
                 GlasmioListRow(stringResource(R.string.source_code), onClick = {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/jizizr/mhub")))
                 })

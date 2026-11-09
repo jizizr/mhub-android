@@ -53,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -173,7 +174,7 @@ private fun PlayerContent(onDismiss: () -> Unit, visibility: AnimatedVisibilityS
 
     GlasmioBackdropHost(
         modifier = Modifier.fillMaxSize(),
-        sampledContent = { PlayerBackground(track?.cover, palette) },
+        sampledContent = { PlayerBackground(track?.cover, palette, state.isPlaying) },
         overlayContent = {
             Column(
                 Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 28.dp),
@@ -225,7 +226,7 @@ private fun PlayerContent(onDismiss: () -> Unit, visibility: AnimatedVisibilityS
 
 /** Average colours of the artwork, for the flowing background (system Palette). */
 @Composable
-private fun rememberPalette(cover: String?): List<Color> {
+internal fun rememberPalette(cover: String?): List<Color> {
     val context = LocalContext.current
     var colors by remember(cover) { mutableStateOf(emptyList<Color>()) }
     LaunchedEffect(cover) {
@@ -240,7 +241,7 @@ private fun rememberPalette(cover: String?): List<Color> {
 }
 
 @Composable
-private fun PlayerBackground(cover: String?, palette: List<Color>) {
+private fun PlayerBackground(cover: String?, palette: List<Color>, playing: Boolean) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         if (!cover.isNullOrEmpty()) {
             AsyncImage(
@@ -250,13 +251,22 @@ private fun PlayerBackground(cover: String?, palette: List<Color>) {
         }
         if (palette.isNotEmpty()) {
             var phase by remember { mutableFloatStateOf(0f) }
-            LaunchedEffect(Unit) {
-                val start = withFrameMillis { it }
-                while (true) withFrameMillis { phase = (it - start) / 9000f }
+            // The wash drifts only while music plays, at ~20 fps: one turn takes
+            // nine seconds, so steps of a few pixels are invisible, and the
+            // screen is not redrawn at the display's full rate for it.
+            LaunchedEffect(playing) {
+                if (!playing) return@LaunchedEffect
+                var last = withFrameMillis { it }
+                while (true) {
+                    delay(50)
+                    val now = withFrameMillis { it }
+                    phase += (now - last) / 9000f
+                    last = now
+                }
             }
-            // A soft flowing wash like the iPhone mesh: overlapping gradients
-            // from each palette colour drift slowly; no hard centre spot.
-            Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = 0.6f }.blur(60.dp)) {
+            // A soft flowing wash like the iPhone mesh: overlapping radial
+            // gradients that already fade to transparent, so no blur pass.
+            Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = 0.6f }) {
                 palette.forEachIndexed { i, color ->
                     val angle = phase + i * 1.7f
                     val center = Offset(
@@ -293,7 +303,7 @@ private fun TitleRow() {
             Text(track?.artist.orEmpty(), color = Color.White.copy(alpha = 0.6f), fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (track != null) {
-            GlassSurface(Modifier.size(32.dp), shape = ContinuousCapsule) { TrackMenu(listOf(track), tint = Color.White) }
+            GlassSurface(sampleBackdrop = false, modifier = Modifier.size(32.dp), shape = ContinuousCapsule) { TrackMenu(listOf(track), tint = Color.White, inPlayer = true) }
         }
     }
 }
@@ -306,9 +316,12 @@ private fun CompactHeader(artwork: Modifier = Modifier, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 18.dp).clickable(onClick = onClick), verticalAlignment = Alignment.CenterVertically) {
         Artwork(track?.cover, Modifier.size(60.dp).then(artwork))
         Spacer(Modifier.width(12.dp))
-        Column {
+        Column(Modifier.weight(1f)) {
             Text(track?.title.orEmpty(), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(track?.artist.orEmpty(), color = Color.White.copy(alpha = 0.6f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (track != null) {
+            GlassSurface(sampleBackdrop = false, modifier = Modifier.size(32.dp), shape = ContinuousCapsule) { TrackMenu(listOf(track), tint = Color.White, inPlayer = true) }
         }
     }
 }
@@ -380,7 +393,7 @@ private fun QualityBadge(quality: Quality?) {
         centerHorizontally = true,
         viewportBounds = above,
         anchor = { open ->
-            GlassSurface(
+            GlassSurface(sampleBackdrop = false, modifier =
                 Modifier.height(22.dp).onGloballyPositioned {
                     val bounds = it.boundsInWindow()
                     // Symmetric around the badge, so centring in it centres on the badge.
@@ -524,7 +537,7 @@ private fun BottomBar(pane: Pane, onSelect: (Pane) -> Unit) {
 @Composable
 private fun PaneButton(active: Boolean, symbol: String, label: String, enabled: Boolean = true, onClick: () -> Unit) {
     if (active) {
-        GlassSurface(Modifier.size(44.dp), shape = ContinuousCapsule, onClick = onClick) {
+        GlassSurface(sampleBackdrop = false, modifier = Modifier.size(44.dp), shape = ContinuousCapsule, onClick = onClick) {
             SfIcon(symbol, label, tint = Color.White, size = 22.dp)
         }
     } else {

@@ -192,6 +192,9 @@ private fun MainScaffold() {
             // Page layer, recorded once so the bottom chrome can refract it.
             Box(
                 Modifier.fillMaxSize()
+                    // Its own render layer, so mini player and tab bar redraws do not
+                    // record the unchanged page again (as MeiloX does).
+                    .graphicsLayer()
                     .glassBackdropSource(chromeBackdrop)
                     .trackBackdropPosition(chromeBackdrop)
                     .nestedScroll(navScroll.nestedScrollConnection),
@@ -231,6 +234,8 @@ private fun MainScaffold() {
                                 }
                             }
                         }
+                        // App-wide alerts need this host's backdrop.
+                        io.github.mhub.app.ui.settings.UpdateDialog()
                     },
                 )
             }

@@ -38,6 +38,7 @@ import io.github.mhub.app.ui.LocalGraph
 import io.github.mhub.app.ui.LocalNavigator
 import io.github.mhub.app.ui.Route
 import io.github.mhub.app.ui.pressScale
+import io.github.mhub.app.ui.components.PlainIconButton
 import io.github.mhub.app.ui.components.Artwork
 import io.github.mhub.app.ui.components.CollectionHeader
 import io.github.mhub.app.ui.components.EmptyState
@@ -62,11 +63,15 @@ fun HomeScreen(listState: LazyListState) {
     val navigator = LocalNavigator.current
     val scope = rememberCoroutineScope()
     val recent by graph.model.recent.collectAsStateWithLifecycle()
-    var home by remember { mutableStateOf<RecommendationHome?>(null) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(false) }
-    var selectedTag by remember { mutableStateOf("") }
-    var seen by remember { mutableStateOf(listOf<String>()) }
+    // Kept by the app graph, so coming back to the home tab shows what was loaded.
+    val store = graph.home
+    val server = graph.settings.serverAddress.state.collectAsStateWithLifecycle().value
+    LaunchedEffect(server) { store.forServer(server) }
+    var home by store::home
+    var error by store::error
+    var loading by store::loading
+    var selectedTag by store::selectedTag
+    var seen by store::seen
 
     fun load(refresh: Boolean) {
         val client = graph.model.client ?: return
@@ -83,7 +88,7 @@ fun HomeScreen(listState: LazyListState) {
             loading = false
         }
     }
-    LaunchedEffect(Unit) { if (home == null) load(false) }
+    LaunchedEffect(server) { if (store.home == null) load(false) }
 
     GlasmioPinnedListPage(
         title = stringResource(R.string.home),
@@ -95,8 +100,8 @@ fun HomeScreen(listState: LazyListState) {
         largeTitleHorizontalPadding = 20.dp,
         verticalArrangement = Arrangement.spacedBy(28.dp),
         actions = {
-            GlasmioIconButton(onClick = { load(true) }, enabled = !loading) { SfIcon(SfSymbol.ArrowClockwise, stringResource(R.string.refresh)) }
-            GlasmioIconButton(onClick = { navigator.push(Route.Settings) }) { SfIcon(SfSymbol.PersonFilled, stringResource(R.string.settings)) }
+            GlasmioIconButton(sampleBackdrop = false, onClick = { load(true) }, enabled = !loading) { SfIcon(SfSymbol.ArrowClockwise, stringResource(R.string.refresh)) }
+            io.github.mhub.app.ui.components.SettingsButton()
         },
     ) {
         val data = home
@@ -127,7 +132,7 @@ fun HomeScreen(listState: LazyListState) {
                 if (data.tracks.isNotEmpty()) item("songs") {
                     val tracks = data.tracks.map { it.track }
                     Section(stringResource(R.string.recommended_songs), trailing = {
-                        GlasmioIconButton(onClick = { graph.player.play(tracks) }) { SfIcon(SfSymbol.PlayFilled, stringResource(R.string.play)) }
+                        PlainIconButton(onClick = { graph.player.play(tracks) }) { SfIcon(SfSymbol.PlayFilled, stringResource(R.string.play)) }
                     }) {
                         LazyHorizontalGrid(
                             rows = GridCells.Fixed(4),
@@ -205,7 +210,7 @@ fun CollectionScreen(route: Route.Collection) {
         navigateBackContentDescription = stringResource(R.string.back),
         actions = {
             collection?.let { loaded ->
-                GlasmioIconButton(onClick = {
+                GlasmioIconButton(sampleBackdrop = false, onClick = {
                     val playlist = graph.library.create(loaded.title, untitled, loaded.items.map { it.track }, loaded.sourceUrl, loaded.platform)
                     graph.model.show(context.getString(R.string.imported, playlist.name, playlist.tracks.size))
                 }) { SfIcon("plus", stringResource(R.string.add_all_to_library)) }

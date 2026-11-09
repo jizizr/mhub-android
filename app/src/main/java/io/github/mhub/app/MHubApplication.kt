@@ -19,6 +19,10 @@ class AppGraph(val app: Application) {
     val settings = Settings(app)
     val library = LibraryStore(app)
     val model = AppModel(settings).also { it.attach(app) }
+    val account = AccountManager(app, model, library).also { model.session = it.session }
+    val updates = UpdateManager(app, settings)
+    val home = HomeStore()
+    val downloads = SongDownloads(app, settings, model)
     val cache = AudioCache(app, settings.cacheLimit.value)
     val player = PlayerController(app, model, cache)
 }

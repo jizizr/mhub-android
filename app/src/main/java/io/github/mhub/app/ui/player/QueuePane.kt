@@ -104,7 +104,7 @@ private fun QueueRow(index: Int, title: String, artist: String, cover: String) {
 
 @Composable
 private fun ModeToggle(label: String, symbol: String, on: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    GlassSurface(modifier.height(36.dp), shape = ContinuousCapsule, onClick = onClick, navigationSurfaceColor = if (on) Color.White else null) {
+    GlassSurface(sampleBackdrop = false, modifier = modifier.height(36.dp), shape = ContinuousCapsule, onClick = onClick, navigationSurfaceColor = if (on) Color.White else null) {
         SfIcon(symbol, label, tint = if (on) Color.Black else Color.White, size = 18.dp)
     }
 }

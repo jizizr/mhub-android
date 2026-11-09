@@ -39,6 +39,8 @@ import io.github.mhub.app.ui.components.TextAlert
 import io.github.mhub.app.ui.components.TrackMenu
 import io.github.mhub.app.ui.components.TrackRow
 import io.github.mhub.app.ui.components.byteText
+import io.github.mhub.core.RateLimit
+import io.github.mhub.core.RateLimitPolicy
 import io.github.mhub.core.Links
 import io.github.neoruaa.glasmio.core.IosTypography
 import io.github.neoruaa.glasmio.core.LocalGlassColors
@@ -55,6 +57,7 @@ import io.github.neoruaa.glasmio.ui.GlasmioMenu
 import io.github.neoruaa.glasmio.ui.GlasmioMenuItem
 import io.github.neoruaa.glasmio.ui.GlasmioReorderableGroup
 import io.github.neoruaa.glasmio.ui.GlasmioSectionTitle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -78,11 +81,12 @@ fun LibraryScreen(listState: LazyListState) {
                 expanded = menu,
                 onExpandedChange = { menu = it },
                 itemCount = 2,
-                anchor = { open -> GlasmioIconButton(onClick = open) { SfIcon("plus", stringResource(R.string.new_playlist)) } },
+                anchor = { open -> GlasmioIconButton(sampleBackdrop = false, onClick = open) { SfIcon("plus", stringResource(R.string.new_playlist)) } },
             ) { backdrop, close ->
                 GlasmioMenuItem(stringResource(R.string.new_playlist), { close(); name = ""; creating = true }, systemName = "plus", backdrop = backdrop)
                 GlasmioMenuItem(stringResource(R.string.import_playlist), { close(); importing = true }, systemName = "link", backdrop = backdrop)
             }
+            io.github.mhub.app.ui.components.SettingsButton()
         },
     ) {
         item("sections") {
@@ -128,6 +132,15 @@ private fun ImportAlert(onDismiss: () -> Unit) {
     val link = field.text
     var working by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    // While the server's quota is used up: when the import resumes (epoch ms).
+    var resumesAt by remember { mutableStateOf<Long?>(null) }
+    var clock by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(resumesAt) {
+        while (resumesAt != null) {
+            clock = System.currentTimeMillis()
+            delay(250)
+        }
+    }
     val untitled = stringResource(R.string.untitled_playlist)
     LaunchedEffect(Unit) {
         val clip = (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).primaryClip
@@ -137,15 +150,21 @@ private fun ImportAlert(onDismiss: () -> Unit) {
     GlasmioAlertDialog(
         onDismissRequest = onDismiss,
         title = stringResource(R.string.import_playlist),
-        message = error ?: stringResource(R.string.import_unsupported),
+        message = resumesAt?.let { stringResource(R.string.import_rate_limited, RateLimit.seconds(maxOf(0L, it - clock))) }
+            ?: error ?: stringResource(R.string.import_unsupported),
         buttons = listOf(
             GlasmioAlertButtonSpec(stringResource(R.string.cancel), onDismiss, role = GlasmioAlertButtonRole.Cancel),
             GlasmioAlertButtonSpec(stringResource(if (working) R.string.loading else R.string.import_button), {
                 val platform = Links.collectionPlatform(link) ?: return@GlasmioAlertButtonSpec
                 val client = graph.model.client ?: return@GlasmioAlertButtonSpec
                 working = true
+                error = null
+                // An import is background work: it waits out the quota and shows the wait.
+                val policy = RateLimitPolicy.importing { resumesAt = System.currentTimeMillis() + it }
+                // Leaving the dialog cancels this scope, the import and any wait.
                 scope.launch {
-                    runCatching { client.collection(platform, link.trim()) }
+                    runCatching { client.collection(platform, link.trim(), policy) }
+                        .also { resumesAt = null }
                         .onSuccess {
                             val playlist = graph.library.create(it.title, untitled, it.items.map { item -> item.track }, it.sourceUrl, it.platform)
                             graph.model.show(context.getString(R.string.imported, playlist.name, playlist.tracks.size))
@@ -187,7 +206,7 @@ fun PlaylistScreen(playlistId: String) {
                     expanded = menu,
                     onExpandedChange = { menu = it },
                     itemCount = 3,
-                    anchor = { open -> GlasmioIconButton(onClick = open) { SfIcon("ellipsis", stringResource(R.string.more)) } },
+                    anchor = { open -> GlasmioIconButton(sampleBackdrop = false, onClick = open) { SfIcon("ellipsis", stringResource(R.string.more)) } },
                 ) { backdrop, close ->
                     GlasmioMenuItem(stringResource(if (editing) R.string.done else R.string.drag_handle), { close(); editing = !editing }, systemName = "line.3.horizontal", backdrop = backdrop)
                     GlasmioMenuItem(stringResource(R.string.rename), { close(); name = playlist.name; renaming = true }, systemName = "pencil", backdrop = backdrop)
@@ -264,7 +283,7 @@ fun CacheScreen() {
         onNavigateBack = { navigator.pop() },
         navigateBackContentDescription = stringResource(R.string.back),
         actions = {
-            GlasmioIconButton(onClick = { confirming = true }, enabled = entries.isNotEmpty()) { SfIcon("trash", stringResource(R.string.clear_cache)) }
+            GlasmioIconButton(sampleBackdrop = false, onClick = { confirming = true }, enabled = entries.isNotEmpty()) { SfIcon("trash", stringResource(R.string.clear_cache)) }
         },
     ) {
         item("usage") {

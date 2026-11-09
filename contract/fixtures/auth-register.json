@@ -1,0 +1,16 @@
+{
+ "user": {
+  "id": 42,
+  "username": "alice"
+ },
+ "recovery_codes": [
+  "ab12-cd34-ef56",
+  "gh78-ij90-kl12",
+  "mn34-op56-qr78",
+  "st90-uv12-wx34",
+  "yz56-ab78-cd90",
+  "ef12-gh34-ij56",
+  "kl78-mn90-op12",
+  "qr34-st56-uv78"
+ ]
+}

@@ -24,10 +24,13 @@ class MainActivity : ComponentActivity() {
             val appearance by graph.settings.appearance.state.collectAsStateWithLifecycle()
             MHubTheme(appearance) { AppRoot() }
         }
+        graph.updates.checkAutomatically()
     }
 
     override fun onStart() {
         super.onStart()
+        // Back in the foreground: upload queued library edits and take the account's library.
+        graph.account.refresh()
         // Binding a controller creates the session service, which then keeps
         // itself in the foreground while music plays.
         controller = MediaController.Builder(this, SessionToken(this, ComponentName(this, PlaybackService::class.java))).buildAsync()

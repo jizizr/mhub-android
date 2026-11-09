@@ -68,6 +68,8 @@
     <string name="added_to_playlist">已添加到「%s」</string>
     <string name="already_in_playlist">歌曲已在「%s」中</string>
     <string name="imported">已导入「%1$s」，共 %2$d 首</string>
+    <string name="playback_rate_limited">切歌太频繁，%d 秒后自动播放</string>
+    <string name="import_rate_limited">服务器繁忙，%d 秒后继续导入…</string>
     <string name="no_more_recommendations">暂时没有更多新歌曲，可以重试</string>
     <string name="autoplay_unavailable">自动续播暂时不可用，点击重试</string>
     <string name="autoplay_unsupported">这个音乐来源暂不支持自动续播</string>
@@ -121,4 +123,51 @@
     <string name="version">版本</string>
     <string name="source_code">源代码</string>
     <string name="license_text">MHub 以 AGPL-3.0-only 发布。通过各平台获取的音乐、封面和歌词，版权归权利人所有。</string>
+    <!-- Account and library sync -->
+    <string name="account">账号</string>
+    <string name="sign_in">登录</string>
+    <string name="register">注册</string>
+    <string name="recovery_sign_in">用恢复码登录</string>
+    <string name="sign_out">退出登录</string>
+    <string name="sign_out_message">本机保留当前歌单，之后的修改不再同步。</string>
+    <string name="sign_out_pending">还有 %1$d 项修改未同步，退出后会丢失。</string>
+    <string name="sync_now">立即同步</string>
+    <string name="syncing">同步中…</string>
+    <string name="synced">已同步</string>
+    <string name="sync_offline">离线</string>
+    <string name="sync_pending">待上传 %1$d 项</string>
+    <string name="sync_failed">同步失败：%1$s</string>
+    <string name="account_footer">登录后歌单与网页版和其他设备同步。</string>
+    <string name="account_linked_footer">歌单的修改会自动上传，打开 App 时取回其他设备的修改。</string>
+    <string name="register_footer">用户名 3–32 位字母、数字或 _ - .，密码至少 8 位。注册后会显示恢复码，忘记密码时用它登录。</string>
+    <string name="username">用户名</string>
+    <string name="password">密码</string>
+    <string name="confirm_password">确认密码</string>
+    <string name="recovery_code">恢复码</string>
+    <string name="password_mismatch">两次输入的密码不一致</string>
+    <string name="recovery_codes_title">保存恢复码</string>
+    <string name="recovery_codes_message">每个恢复码只能用一次，忘记密码时用来登录。它们只显示这一次。</string>
+    <string name="copy">复制</string>
+    <!-- Updates -->
+    <string name="auto_update">自动检查更新</string>
+    <string name="check_update">检查更新</string>
+    <string name="checking_update">正在检查…</string>
+    <string name="up_to_date">已是最新版本</string>
+    <string name="update_check_failed">检查更新失败，请稍后再试</string>
+    <string name="update_available">发现新版本 %1$s</string>
+    <string name="later">以后</string>
+    <!-- Download -->
+    <string name="download">下载</string>
+    <string name="downloading">正在下载《%1$s》…</string>
+    <string name="download_in_progress">《%1$s》正在下载</string>
+    <string name="download_saved">《%1$s》已保存到「音乐/MHub」</string>
+    <string name="download_failed">下载失败：%1$s</string>
+    <string name="server_busy_wait">服务器繁忙，%1$d 秒后继续…</string>
+    <!-- Lyrics sharing and display settings -->
+    <string name="share_lyrics">分享歌词</string>
+    <string name="share_lyrics_menu">分享歌词…</string>
+    <string name="share_lyrics_hint">选择要分享的歌词，最多 %1$d 行</string>
+    <string name="share_lyrics_empty">选择下面的歌词</string>
+    <string name="display_settings">歌词与外观</string>
+    <string name="display_settings_menu">歌词与外观…</string>
 </resources>

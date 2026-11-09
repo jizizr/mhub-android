@@ -58,6 +58,8 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.coil.compose)
     implementation(libs.coil.okhttp)
+    // QR code of the song link on shared lyric cards.
+    implementation(libs.zxing.core)
     implementation(libs.palette)
     debugImplementation(libs.compose.tooling)
 }

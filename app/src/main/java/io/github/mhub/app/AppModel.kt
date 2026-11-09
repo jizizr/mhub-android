@@ -31,13 +31,16 @@ class AppModel(val settings: Settings) {
 
     private var cachedClient: Pair<String, MHubClient>? = null
 
+    /** The account session every request carries (set once by the app graph). */
+    var session: io.github.mhub.core.SessionStore? = null
+
     /** The client for the configured server, or null before setup. */
     val client: MHubClient?
         get() {
             val url = settings.serverUrl ?: return null
             val key = url.toString()
             cachedClient?.takeIf { it.first == key }?.let { return it.second }
-            return MHubClient(url).also { cachedClient = key to it }
+            return MHubClient(url, session = session).also { cachedClient = key to it }
         }
 
     fun attach(context: android.content.Context) {

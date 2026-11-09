@@ -1,0 +1,295 @@
+{
+ "notation": "Handling of HTTP 429 from the MHub server, matching the web client (frontend/src/apis/music.js request/retryAfterMs and the player's prefetch retry in jizizr/mhub). retry_after: the Retry-After header (seconds or HTTP date, null when missing) read at now_ms. waits: the client sends one request per response in order, waiting out each 429 while the total wait stays within max_wait_ms; expect.waits lists the waits in ms; outcome is ok, rate_limited (with retry_after_ms and the error message) or http (the status of a non-429 error). seconds: whole seconds shown to the listener (rounded up). prefetch_delay: ms before retrying a prefetch after attempt failures, never sooner than the server's Retry-After.",
+ "limits_ms": {
+  "default": 10000,
+  "playback": 120000,
+  "prefetch": 0,
+  "import": 300000
+ },
+ "retry_after": [
+  {
+   "name": "delta seconds",
+   "header": "7",
+   "now_ms": 1794231600000,
+   "expect_ms": 7000
+  },
+  {
+   "name": "surrounding spaces are ignored",
+   "header": " 12 ",
+   "now_ms": 1794231600000,
+   "expect_ms": 12000
+  },
+  {
+   "name": "zero waits at least a second",
+   "header": "0",
+   "now_ms": 1794231600000,
+   "expect_ms": 1000
+  },
+  {
+   "name": "missing header waits a second",
+   "header": null,
+   "now_ms": 1794231600000,
+   "expect_ms": 1000
+  },
+  {
+   "name": "empty header waits a second",
+   "header": "",
+   "now_ms": 1794231600000,
+   "expect_ms": 1000
+  },
+  {
+   "name": "unparseable header waits a second",
+   "header": "soon",
+   "now_ms": 1794231600000,
+   "expect_ms": 1000
+  },
+  {
+   "name": "fractional seconds are not delta-seconds",
+   "header": "1.5",
+   "now_ms": 1794231600000,
+   "expect_ms": 1000
+  },
+  {
+   "name": "HTTP date",
+   "header": "Mon, 09 Nov 2026 13:40:30 GMT",
+   "now_ms": 1794231600000,
+   "expect_ms": 30000
+  },
+  {
+   "name": "HTTP date counted from a clock between seconds",
+   "header": "Mon, 09 Nov 2026 13:40:30 GMT",
+   "now_ms": 1794231600500,
+   "expect_ms": 29500
+  },
+  {
+   "name": "HTTP date in the past waits a second",
+   "header": "Mon, 09 Nov 2026 13:39:00 GMT",
+   "now_ms": 1794231600000,
+   "expect_ms": 1000
+  }
+ ],
+ "waits": [
+  {
+   "name": "one 429 then success",
+   "max_wait_ms": 10000,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": "3",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 200
+    }
+   ],
+   "expect": {
+    "waits": [
+     3000
+    ],
+    "outcome": "ok"
+   }
+  },
+  {
+   "name": "waits add up to the limit",
+   "max_wait_ms": 10000,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": "4",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 429,
+     "retry_after": "4",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 200
+    }
+   ],
+   "expect": {
+    "waits": [
+     4000,
+     4000
+    ],
+    "outcome": "ok"
+   }
+  },
+  {
+   "name": "a wait past the limit fails",
+   "max_wait_ms": 10000,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": "4",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 429,
+     "retry_after": "4",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 429,
+     "retry_after": "4",
+     "detail": "请求过于频繁，请稍后再试"
+    }
+   ],
+   "expect": {
+    "waits": [
+     4000,
+     4000
+    ],
+    "outcome": "rate_limited",
+    "retry_after_ms": 4000,
+    "message": "请求过于频繁，请稍后再试（约 4 秒后可重试）"
+   }
+  },
+  {
+   "name": "a single wait longer than the limit fails at once",
+   "max_wait_ms": 10000,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": "11",
+     "detail": "请求过于频繁，请稍后再试"
+    }
+   ],
+   "expect": {
+    "waits": [],
+    "outcome": "rate_limited",
+    "retry_after_ms": 11000,
+    "message": "请求过于频繁，请稍后再试（约 11 秒后可重试）"
+   }
+  },
+  {
+   "name": "prefetch never waits",
+   "max_wait_ms": 0,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": "2",
+     "detail": "请求过于频繁，请稍后再试"
+    }
+   ],
+   "expect": {
+    "waits": [],
+    "outcome": "rate_limited",
+    "retry_after_ms": 2000,
+    "message": "请求过于频繁，请稍后再试（约 2 秒后可重试）"
+   }
+  },
+  {
+   "name": "a requested song waits up to two minutes",
+   "max_wait_ms": 120000,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": "60",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 429,
+     "retry_after": "60",
+     "detail": "请求过于频繁，请稍后再试"
+    },
+    {
+     "status": 200
+    }
+   ],
+   "expect": {
+    "waits": [
+     60000,
+     60000
+    ],
+    "outcome": "ok"
+   }
+  },
+  {
+   "name": "429 without a detail",
+   "max_wait_ms": 0,
+   "responses": [
+    {
+     "status": 429,
+     "retry_after": null
+    }
+   ],
+   "expect": {
+    "waits": [],
+    "outcome": "rate_limited",
+    "retry_after_ms": 1000,
+    "message": "请求过于频繁（约 1 秒后可重试）"
+   }
+  },
+  {
+   "name": "other errors are not retried",
+   "max_wait_ms": 10000,
+   "responses": [
+    {
+     "status": 502,
+     "detail": "upstream failed"
+    }
+   ],
+   "expect": {
+    "waits": [],
+    "outcome": "http",
+    "status": 502
+   }
+  }
+ ],
+ "seconds": [
+  {
+   "ms": 1000,
+   "expect": 1
+  },
+  {
+   "ms": 2500,
+   "expect": 3
+  },
+  {
+   "ms": 59001,
+   "expect": 60
+  },
+  {
+   "ms": 120000,
+   "expect": 120
+  }
+ ],
+ "prefetch_delay": [
+  {
+   "attempt": 0,
+   "retry_after_ms": 0,
+   "expect_ms": 5000
+  },
+  {
+   "attempt": 1,
+   "retry_after_ms": 0,
+   "expect_ms": 15000
+  },
+  {
+   "attempt": 2,
+   "retry_after_ms": 0,
+   "expect_ms": 30000
+  },
+  {
+   "attempt": 7,
+   "retry_after_ms": 0,
+   "expect_ms": 30000
+  },
+  {
+   "attempt": 0,
+   "retry_after_ms": 20000,
+   "expect_ms": 20000
+  },
+  {
+   "attempt": 1,
+   "retry_after_ms": 3000,
+   "expect_ms": 15000
+  },
+  {
+   "attempt": 2,
+   "retry_after_ms": 45000,
+   "expect_ms": 45000
+  }
+ ]
+}

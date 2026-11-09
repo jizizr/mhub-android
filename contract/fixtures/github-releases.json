@@ -1,0 +1,46 @@
+[
+ {
+  "tag_name": "v0.1.0-beta.2",
+  "name": "v0.1.0-beta.2",
+  "body": "## 变化\n- 歌单同步\n- 下载与歌词分享",
+  "html_url": "https://github.com/jizizr/mhub-android/releases/tag/v0.1.0-beta.2",
+  "draft": false,
+  "prerelease": true,
+  "published_at": "2026-11-10T08:00:00Z",
+  "assets": [
+   {
+    "name": "MHub-0.1.0-beta.2.apk",
+    "browser_download_url": "https://github.com/jizizr/mhub-android/releases/download/v0.1.0-beta.2/MHub-0.1.0-beta.2.apk"
+   },
+   {
+    "name": "MHub-0.1.0-beta.2.apk.sha256",
+    "browser_download_url": "https://github.com/jizizr/mhub-android/releases/download/v0.1.0-beta.2/MHub-0.1.0-beta.2.apk.sha256"
+   }
+  ]
+ },
+ {
+  "tag_name": "v0.2.0-beta.1",
+  "name": "draft",
+  "body": "",
+  "html_url": "https://github.com/jizizr/mhub-android/releases/tag/untagged",
+  "draft": true,
+  "prerelease": true,
+  "published_at": null,
+  "assets": []
+ },
+ {
+  "tag_name": "v0.1.0-beta.1",
+  "name": "v0.1.0-beta.1",
+  "body": "首个预发布",
+  "html_url": "https://github.com/jizizr/mhub-android/releases/tag/v0.1.0-beta.1",
+  "draft": false,
+  "prerelease": true,
+  "published_at": "2026-11-09T12:00:00Z",
+  "assets": [
+   {
+    "name": "MHub-0.1.0-beta.1-unsigned.ipa",
+    "browser_download_url": "https://github.com/jizizr/mhub-ios/releases/download/v0.1.0-beta.1/MHub-0.1.0-beta.1-unsigned.ipa"
+   }
+  ]
+ }
+]

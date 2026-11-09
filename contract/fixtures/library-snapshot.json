@@ -1,0 +1,49 @@
+{
+ "playlists": [
+  {
+   "id": "7b0a8d0e-2c4f-4c8e-9d61-0f3f2f7d9a10",
+   "name": "通勤",
+   "platform": "",
+   "source_id": "",
+   "source_url": "",
+   "source_platform": "",
+   "cover": "https://img.example/1.jpg",
+   "created_at": 1762000000123,
+   "updated_at": 1762000500000,
+   "tracks": [
+    {
+     "key": "netease:1",
+     "platform": "netease",
+     "source_id": "1",
+     "title": "歌1",
+     "artist": "歌手",
+     "cover": "https://img.example/1.jpg"
+    },
+    {
+     "key": "applemusic:1440833098",
+     "platform": "applemusic",
+     "source_id": "1440833098",
+     "title": "晴天",
+     "artist": "周杰伦",
+     "cover": ""
+    }
+   ]
+  },
+  {
+   "id": "import-1",
+   "name": "导入的歌单",
+   "platform": "netease",
+   "source_id": "123",
+   "source_url": "https://music.example/playlist?id=123",
+   "source_platform": "netease",
+   "cover": "",
+   "created_at": 1761000000000,
+   "updated_at": 1761000000000,
+   "tracks": []
+  }
+ ],
+ "liked": [
+  "netease:1"
+ ],
+ "less": []
+}

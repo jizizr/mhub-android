@@ -1,0 +1,9 @@
+{
+ "user": {
+  "id": 42,
+  "username": "alice",
+  "device_id": "3f1c0e1a-7c1b-4e43-9a1e-5d2b8c9f0a11",
+  "has_password": true,
+  "passkeys": 0
+ }
+}

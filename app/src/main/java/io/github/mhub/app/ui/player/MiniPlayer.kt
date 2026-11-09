@@ -8,6 +8,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import kotlin.math.roundToInt
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.layout
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.graphics.graphicsLayer
 import com.kyant.capsule.ContinuousRoundedRectangle
 import io.github.mhub.app.ui.LocalSharedScope
@@ -70,8 +74,10 @@ fun MiniPlayer(
             Column(Modifier.weight(1f)) {
                 Text(track?.title ?: stringResource(R.string.not_playing), style = IosTypography.subheadline, fontWeight = FontWeight.Medium,
                     color = colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                // Inline (minimized) shows the title only, as on iOS.
-                if (track != null && inline.value < 0.5f) {
+                // Inline (minimized) shows the title only, as on iOS. Recompose only
+                // when crossing the midpoint, not on every frame of the motion.
+                val showsArtist by remember(inline) { derivedStateOf { inline.value < 0.5f } }
+                if (track != null && showsArtist) {
                     Text(track.artist, style = IosTypography.footnote, color = colors.secondaryContent, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -86,8 +92,19 @@ fun MiniPlayer(
                     )
                 }
             }
-            val nextWidth = 40.dp * (1f - inline.value.coerceIn(0f, 1f))
-            if (nextWidth > 0.5.dp) Box(Modifier.size(width = nextWidth, height = 40.dp).graphicsLayer { alpha = 1f - inline.value }.clickable(enabled = track != null) { graph.player.next() }, contentAlignment = Alignment.Center) {
+            // The next button folds away while the capsule moves inline; the
+            // width is read during layout so the motion never recomposes.
+            Box(
+                Modifier
+                    .layout { measurable, _ ->
+                        val width = (40.dp.toPx() * (1f - inline.value.coerceIn(0f, 1f))).roundToInt()
+                        val placeable = measurable.measure(Constraints.fixed(40.dp.roundToPx(), 40.dp.roundToPx()))
+                        layout(width, placeable.height) { if (width > 0) placeable.place(0, 0) }
+                    }
+                    .graphicsLayer { alpha = 1f - inline.value; clip = true }
+                    .clickable(enabled = track != null) { graph.player.next() },
+                contentAlignment = Alignment.Center,
+            ) {
                 SfIcon(SfSymbol.ForwardFilled, stringResource(R.string.next), tint = colors.content, size = 24.dp)
             }
         }

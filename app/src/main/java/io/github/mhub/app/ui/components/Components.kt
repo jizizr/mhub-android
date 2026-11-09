@@ -2,6 +2,15 @@ package io.github.mhub.app.ui.components
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import com.kyant.capsule.ContinuousCapsule
+import io.github.mhub.app.ui.pressScale
+import io.github.mhub.app.ui.MHubAccent
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,8 +96,8 @@ fun Artwork(url: String?, modifier: Modifier = Modifier, corner: Dp = 6.dp) {
 @Composable
 fun TrackRow(track: Track, modifier: Modifier = Modifier, playlistId: String? = null, onRemove: (() -> Unit)? = null, separator: Boolean = false) {
     val graph = LocalGraph.current
-    val state by graph.player.state.collectAsStateWithLifecycle()
-    val playing = state.current?.id == track.id
+    // Each row only follows which song is current, not every player update.
+    val playing by remember(track.id) { derivedStateOf { graph.player.currentTrackId.value == track.id } }
     val colors = LocalGlassColors.current
     val separatorColor = colors.separator
     Row(
@@ -122,17 +132,22 @@ fun TrackRow(track: Track, modifier: Modifier = Modifier, playlistId: String? = 
 
 /** The song actions, in the order shared with iOS and the web app. */
 @Composable
-fun TrackMenu(tracks: List<Track>, playlistId: String? = null, onRemove: (() -> Unit)? = null, tint: Color? = null) {
+fun TrackMenu(tracks: List<Track>, playlistId: String? = null, onRemove: (() -> Unit)? = null, tint: Color? = null, inPlayer: Boolean = false) {
     val graph = LocalGraph.current
     val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
+    var armed by remember { mutableStateOf(false) }
     var addToPlaylist by remember { mutableStateOf(false) }
+    var sharingLyrics by remember { mutableStateOf(false) }
+    var displaySettings by remember { mutableStateOf(false) }
+    val synced = inPlayer && graph.player.state.collectAsStateWithLifecycle().value.lyrics.isSynced
     val share = tracks.singleOrNull()?.let { track -> graph.settings.serverUrl?.let { Links.shareUrl(track, it) }?.let { track to it } }
     val removeLabel = stringResource(R.string.remove_from_playlist)
     val items = buildList {
         add(Triple(stringResource(R.string.play_next), "text.line.first.and.arrowtriangle.forward") { graph.player.playNext(tracks) })
         add(Triple(stringResource(R.string.add_to_queue), "text.line.last.and.arrowtriangle.forward") { graph.player.append(tracks) })
         add(Triple(stringResource(R.string.add_to_playlist), "text.badge.plus") { addToPlaylist = true })
+        tracks.singleOrNull()?.let { track -> add(Triple(stringResource(R.string.download), "arrow.down.circle") { graph.downloads.download(track) }) }
         if (share != null) {
             val shareTitle = stringResource(R.string.share)
             add(Triple(shareTitle, "square.and.arrow.up") {
@@ -141,16 +156,25 @@ fun TrackMenu(tracks: List<Track>, playlistId: String? = null, onRemove: (() -> 
                 context.startActivity(Intent.createChooser(intent, shareTitle))
             })
         }
+        if (synced) add(Triple(stringResource(R.string.share_lyrics_menu), "quote.bubble") { sharingLyrics = true })
+        if (inPlayer) add(Triple(stringResource(R.string.display_settings_menu), "textformat.size") { displaySettings = true })
     }
-    GlasmioMenu(
+    val anchor: @Composable (() -> Unit) -> Unit = { open ->
+        Box(Modifier.size(width = 36.dp, height = 44.dp).clickable(onClick = open), contentAlignment = Alignment.Center) {
+            SfIcon(SfSymbol.Ellipsis, stringResource(R.string.more), tint = tint ?: LocalGlassColors.current.secondaryContent, size = 20.dp)
+        }
+    }
+    // A menu anchor tracks its window bounds on every frame it moves, which in a
+    // scrolling list of rows costs real frame time. Rows show a plain button and
+    // build the menu only while it is in use.
+    if (!armed) {
+        anchor { armed = true; expanded = true }
+    } else GlasmioMenu(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         itemCount = items.size + if (playlistId != null && onRemove != null) 1 else 0,
-        anchor = { open ->
-            Box(Modifier.size(width = 36.dp, height = 44.dp).clickable(onClick = open), contentAlignment = Alignment.Center) {
-                SfIcon(SfSymbol.Ellipsis, stringResource(R.string.more), tint = tint ?: LocalGlassColors.current.secondaryContent, size = 20.dp)
-            }
-        },
+        onClosed = { armed = false },
+        anchor = anchor,
     ) { backdrop, close ->
         items.forEach { (title, symbol, action) ->
             GlasmioMenuItem(title, { close(); action() }, systemName = symbol, backdrop = backdrop)
@@ -160,6 +184,8 @@ fun TrackMenu(tracks: List<Track>, playlistId: String? = null, onRemove: (() -> 
         }
     }
     if (addToPlaylist) AddToPlaylistSheet(tracks) { addToPlaylist = false }
+    if (sharingLyrics) tracks.singleOrNull()?.let { io.github.mhub.app.ui.player.LyricsShareSheet(it, null) { sharingLyrics = false } }
+    if (displaySettings) io.github.mhub.app.ui.settings.DisplaySettingsSheet { displaySettings = false }
 }
 
 @Composable
@@ -233,15 +259,15 @@ fun TextAlert(title: String, placeholder: String, confirm: String, value: String
 fun PlayShuffleButtons(tracks: List<Track>, modifier: Modifier = Modifier) {
     val graph = LocalGraph.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        GlasmioButton(onClick = { graph.player.play(tracks, shuffle = false) }, modifier = Modifier.weight(1f), size = GlasmioButtonSize.Large, enabled = tracks.isNotEmpty()) {
-            SfIcon(SfSymbol.PlayFilled, null, size = 18.dp)
+        PlainButton(onClick = { graph.player.play(tracks, shuffle = false) }, modifier = Modifier.weight(1f), enabled = tracks.isNotEmpty()) {
+            SfIcon(SfSymbol.PlayFilled, null, tint = MHubAccent, size = 18.dp)
             Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.play), fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.play), color = MHubAccent, fontWeight = FontWeight.SemiBold)
         }
-        GlasmioButton(onClick = { graph.player.play(tracks, shuffle = true) }, modifier = Modifier.weight(1f), size = GlasmioButtonSize.Large, enabled = tracks.isNotEmpty()) {
-            SfIcon("shuffle", null, size = 18.dp)
+        PlainButton(onClick = { graph.player.play(tracks, shuffle = true) }, modifier = Modifier.weight(1f), enabled = tracks.isNotEmpty()) {
+            SfIcon("shuffle", null, tint = MHubAccent, size = 18.dp)
             Spacer(Modifier.width(6.dp))
-            Text(stringResource(R.string.shuffle), fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.shuffle), color = MHubAccent, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -276,7 +302,7 @@ fun EmptyState(title: String, message: String? = null, symbol: String = "music.n
         }
         if (action != null) {
             Spacer(Modifier.height(16.dp))
-            GlasmioButton(onClick = action.second) { Text(action.first) }
+            PlainButton(onClick = action.second) { Text(action.first, color = MHubAccent, fontWeight = FontWeight.SemiBold) }
         }
     }
 }
@@ -306,3 +332,41 @@ fun ToastPill(text: String, onClick: () -> Unit) {
 /** iOS `systemBackground`: plain pages (home, search, song lists) are white / black, grouped pages stay grey. */
 @Composable
 fun plainBackground(): Color = if (LocalGlassColors.current.isDark) Color.Black else Color.White
+
+/**
+ * Buttons inside scrolling content use Apple Music's plain gray fill, not
+ * Liquid Glass: glass there re-samples the page on every scroll frame and is
+ * sampled again by the tab bar and mini player above it.
+ */
+@Composable
+fun PlainButton(onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, content: @Composable RowScope.() -> Unit) {
+    val colors = LocalGlassColors.current
+    Row(
+        modifier.height(50.dp).clip(ContinuousCapsule).background(colors.container)
+            .then(if (enabled) Modifier.pressScale(onClick) else Modifier.graphicsLayer { alpha = 0.4f })
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        CompositionLocalProvider(LocalContentColor provides MHubAccent) { content() }
+    }
+}
+
+/** A round plain icon button for section headers. */
+@Composable
+fun PlainIconButton(onClick: () -> Unit, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+    val colors = LocalGlassColors.current
+    Box(
+        modifier.size(36.dp).clip(CircleShape).background(colors.container).pressScale(onClick),
+        contentAlignment = Alignment.Center,
+    ) { CompositionLocalProvider(LocalContentColor provides colors.content) { content() } }
+}
+
+/** The account button at the top right of every root page; opens settings (Apple Music puts it on each tab). */
+@Composable
+fun SettingsButton() {
+    val navigator = io.github.mhub.app.ui.LocalNavigator.current
+    io.github.neoruaa.glasmio.ui.GlasmioIconButton(sampleBackdrop = false, onClick = { navigator.push(io.github.mhub.app.ui.Route.Settings) }) {
+        SfIcon(SfSymbol.PersonFilled, stringResource(R.string.settings))
+    }
+}
