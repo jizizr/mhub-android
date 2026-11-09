@@ -220,7 +220,10 @@ fun PlaylistScreen(playlistId: String) {
             return@GlasmioPinnedListPage
         }
         item("header") {
-            CollectionHeader(playlist.name, playlist.cover, context.getString(R.string.songs_count, playlist.tracks.size), playlist.tracks)
+            CollectionHeader(
+                playlist.name, playlist.cover, context.getString(R.string.songs_count, playlist.tracks.size), playlist.tracks,
+                io.github.mhub.core.QueueSource(io.github.mhub.core.QueueSource.PLAYLIST, playlist.name, id = playlist.id),
+            )
         }
         if (playlist.tracks.isEmpty()) {
             item("empty") { EmptyState(stringResource(R.string.empty_playlist)) }

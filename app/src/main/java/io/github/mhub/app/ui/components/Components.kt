@@ -256,15 +256,15 @@ fun TextAlert(title: String, placeholder: String, confirm: String, value: String
 
 /** "播放" and "随机播放" under a list header, as in Apple Music. */
 @Composable
-fun PlayShuffleButtons(tracks: List<Track>, modifier: Modifier = Modifier) {
+fun PlayShuffleButtons(tracks: List<Track>, modifier: Modifier = Modifier, source: io.github.mhub.core.QueueSource? = null) {
     val graph = LocalGraph.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        PlainButton(onClick = { graph.player.play(tracks, shuffle = false) }, modifier = Modifier.weight(1f), enabled = tracks.isNotEmpty()) {
+        PlainButton(onClick = { graph.player.play(tracks, shuffle = false, source = source) }, modifier = Modifier.weight(1f), enabled = tracks.isNotEmpty()) {
             SfIcon(SfSymbol.PlayFilled, null, tint = MHubAccent, size = 18.dp)
             Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.play), color = MHubAccent, fontWeight = FontWeight.SemiBold)
         }
-        PlainButton(onClick = { graph.player.play(tracks, shuffle = true) }, modifier = Modifier.weight(1f), enabled = tracks.isNotEmpty()) {
+        PlainButton(onClick = { graph.player.play(tracks, shuffle = true, source = source) }, modifier = Modifier.weight(1f), enabled = tracks.isNotEmpty()) {
             SfIcon("shuffle", null, tint = MHubAccent, size = 18.dp)
             Spacer(Modifier.width(6.dp))
             Text(stringResource(R.string.shuffle), color = MHubAccent, fontWeight = FontWeight.SemiBold)
@@ -274,7 +274,7 @@ fun PlayShuffleButtons(tracks: List<Track>, modifier: Modifier = Modifier) {
 
 /** Large centred header for playlist and collection pages. */
 @Composable
-fun CollectionHeader(title: String, cover: String?, subtitle: String?, tracks: List<Track>?) {
+fun CollectionHeader(title: String, cover: String?, subtitle: String?, tracks: List<Track>?, source: io.github.mhub.core.QueueSource? = null) {
     val colors = LocalGlassColors.current
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Artwork(cover, Modifier.size(240.dp), corner = 12.dp)
@@ -283,7 +283,7 @@ fun CollectionHeader(title: String, cover: String?, subtitle: String?, tracks: L
         if (subtitle != null) Text(subtitle, style = IosTypography.subheadline, color = colors.secondaryContent)
         if (tracks != null) {
             Spacer(Modifier.height(14.dp))
-            PlayShuffleButtons(tracks)
+            PlayShuffleButtons(tracks, source = source)
         }
     }
 }

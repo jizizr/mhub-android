@@ -211,7 +211,7 @@ private fun PlayerContent(onDismiss: () -> Unit, visibility: AnimatedVisibilityS
                         }
                         Pane.Queue -> Column {
                             CompactHeader(Modifier.playerArtwork(shared, paneScope, "pane-artwork")) { pane = Pane.Artwork }
-                            QueuePane(Modifier.weight(1f))
+                            QueuePane(Modifier.weight(1f), onDismissPlayer = onDismiss)
                         }
                     }
                 }

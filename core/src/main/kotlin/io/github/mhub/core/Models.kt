@@ -211,6 +211,29 @@ data class LyricsPayload(
 )
 
 /** A local playlist. The JSON shape is shared with the iOS app. */
+/**
+ * Where the queue came from, shown above it like the web `sourcePlaylist`:
+ * `playlist` (local, [id]), `collection` (an album or platform playlist,
+ * reopened from [platform] and [url]) or `recommendation`.
+ */
+@Serializable
+data class QueueSource(
+    val type: String,
+    val name: String,
+    val id: String = "",
+    val platform: String = "",
+    val url: String = "",
+    val cover: String = "",
+) {
+    val isRecommendation: Boolean get() = type == RECOMMENDATION
+
+    companion object {
+        const val PLAYLIST = "playlist"
+        const val COLLECTION = "collection"
+        const val RECOMMENDATION = "recommendation"
+    }
+}
+
 @Serializable
 data class Playlist(
     val id: String,

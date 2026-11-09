@@ -132,7 +132,10 @@ fun HomeScreen(listState: LazyListState) {
                 if (data.tracks.isNotEmpty()) item("songs") {
                     val tracks = data.tracks.map { it.track }
                     Section(stringResource(R.string.recommended_songs), trailing = {
-                        PlainIconButton(onClick = { graph.player.play(tracks) }) { SfIcon(SfSymbol.PlayFilled, stringResource(R.string.play)) }
+                        val sourceName = stringResource(R.string.casual_listening, tag?.label ?: stringResource(R.string.made_for_you))
+                        PlainIconButton(onClick = {
+                            graph.player.play(tracks, source = io.github.mhub.core.QueueSource(io.github.mhub.core.QueueSource.RECOMMENDATION, sourceName))
+                        }) { SfIcon(SfSymbol.PlayFilled, stringResource(R.string.play)) }
                     }) {
                         LazyHorizontalGrid(
                             rows = GridCells.Fixed(4),
@@ -223,6 +226,10 @@ fun CollectionScreen(route: Route.Collection) {
                 loaded?.title ?: route.title, route.cover,
                 loaded?.let { context.getString(R.string.songs_count, it.items.size) },
                 loaded?.items?.map { it.track },
+                io.github.mhub.core.QueueSource(
+                    io.github.mhub.core.QueueSource.COLLECTION, loaded?.title ?: route.title,
+                    id = route.url, platform = route.platform, url = route.url, cover = route.cover,
+                ),
             )
         }
         when {

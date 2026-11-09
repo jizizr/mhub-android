@@ -111,6 +111,13 @@ class Navigator {
 
     fun push(route: Route) { stacks.getValue(tab).add(route) }
     fun pop(): Boolean = stacks.getValue(tab).removeLastOrNull() != null
+    /** Shows [next] from its root, then [route] on top (the queue's source link). */
+    fun open(next: Tab, route: Route? = null) {
+        tab = next
+        stacks.getValue(next).clear()
+        route?.let { stacks.getValue(next).add(it) }
+    }
+
     fun select(next: Tab) {
         // Re-selecting the current tab returns to its root, as on iOS.
         if (next == tab) stacks.getValue(tab).clear() else tab = next

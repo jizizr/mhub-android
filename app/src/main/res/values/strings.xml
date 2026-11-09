@@ -170,4 +170,19 @@
     <string name="share_lyrics_empty">选择下面的歌词</string>
     <string name="display_settings">歌词与外观</string>
     <string name="display_settings_menu">歌词与外观…</string>
+    <!-- Play queue (web QueuePanel) -->
+    <string name="queue_count">%1$d 首音乐</string>
+    <string name="source_playlist">来自歌单：%1$s</string>
+    <string name="source_recommendation">来自推荐：%1$s</string>
+    <string name="clear_queue">清空队列</string>
+    <string name="clear_queue_confirm">清空当前播放队列？正在播放的歌曲也会停止。</string>
+    <string name="clear">清空</string>
+    <string name="autoplay_loading">正在挑选接下来听的歌曲…</string>
+    <string name="autoplay_empty">暂时没有更多新歌曲，可以重试</string>
+    <string name="autoplay_recommended"> · ∞ 推荐</string>
+    <string name="queue_empty">队列是空的</string>
+    <string name="queue_empty_hint">在搜索结果或歌单中点「添加到播放队列」来添加音乐</string>
+    <string name="casual_listening">随便听 · %1$s</string>
+    <string name="made_for_you">为你生成</string>
+    <string name="unknown_artist">未知艺人</string>
 </resources>

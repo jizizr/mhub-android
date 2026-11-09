@@ -60,6 +60,8 @@ dependencies {
     implementation(libs.coil.okhttp)
     // QR code of the song link on shared lyric cards.
     implementation(libs.zxing.core)
+    // Drag-to-reorder in the play queue (already used by Glasmio).
+    implementation("sh.calvin.reorderable:reorderable:3.1.0")
     implementation(libs.palette)
     debugImplementation(libs.compose.tooling)
 }

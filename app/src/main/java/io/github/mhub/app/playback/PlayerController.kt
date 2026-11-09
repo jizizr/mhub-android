@@ -21,6 +21,7 @@ import io.github.mhub.core.Lyrics
 import io.github.mhub.core.MHubJson
 import io.github.mhub.core.PlatformInfo
 import io.github.mhub.core.PlayQueue
+import io.github.mhub.core.QueueSource
 import io.github.mhub.core.Quality
 import io.github.mhub.core.RateLimit
 import io.github.mhub.core.RateLimitPolicy
@@ -56,6 +57,8 @@ import java.io.File
 class PlayerController(private val context: Context, private val model: AppModel, private val cache: AudioCache) {
     enum class Phase { Idle, Loading, Playing, Paused, Failed }
     enum class LyricsState { Idle, Loading, Loaded, Failed }
+    /** The last AutoPlay request, for the queue's notice (web `autoplayState`). */
+    enum class AutoplayStatus { Idle, Loading, Ready, Empty, Unsupported, Error }
 
     data class State(
         val queue: PlayQueue = PlayQueue(),
@@ -65,7 +68,9 @@ class PlayerController(private val context: Context, private val model: AppModel
         val playingQuality: Quality? = null,
         val lyrics: Lyrics = Lyrics.Empty,
         val lyricsState: LyricsState = LyricsState.Idle,
-        val autoplayLoading: Boolean = false,
+        val autoplay: AutoplayStatus = AutoplayStatus.Idle,
+        /** Where the queue came from (docs/design.md「播放队列」). */
+        val source: QueueSource? = null,
         val wantsPlay: Boolean = false,
     ) {
         val current: Track? get() = queue.current
@@ -167,9 +172,10 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     /** "播放" / "随机播放" on a list: replaces the queue. */
-    fun play(tracks: List<Track>, start: Int = 0, shuffle: Boolean? = null) {
+    fun play(tracks: List<Track>, start: Int = 0, shuffle: Boolean? = null, source: QueueSource? = null) {
         if (tracks.isEmpty()) return
         setQueue(queue.replace(tracks, start, shuffle))
+        _state.update { it.copy(source = source) }
         resetAutoplayStation()
         load()
     }
@@ -218,6 +224,7 @@ class PlayerController(private val context: Context, private val model: AppModel
 
     fun clearQueue() {
         setQueue(queue.clear())
+        _state.update { it.copy(source = null, autoplay = AutoplayStatus.Idle) }
         stop()
     }
 
@@ -282,7 +289,11 @@ class PlayerController(private val context: Context, private val model: AppModel
         resetAutoplayStation()
         queueChanged()
         if (enabled) scope.launch { fetchRecommendations(force = false) }
+        else _state.update { it.copy(autoplay = AutoplayStatus.Idle) }
     }
+
+    /** The queue notice's「重试」. */
+    fun retryAutoplay() { scope.launch { fetchRecommendations(force = true) } }
 
     // Loading ----------------------------------------------------------------
 
@@ -554,7 +565,7 @@ class PlayerController(private val context: Context, private val model: AppModel
         val client = model.client ?: return 0
         if (!queue.autoplay) return 0
         if (seed.platform !in PlatformInfo.autoplayPlatforms) {
-            if (force) model.show(context.getString(R.string.autoplay_unsupported))
+            _state.update { it.copy(autoplay = AutoplayStatus.Unsupported) }
             return 0
         }
         if (!force && queue.upcoming.size > 2) return 0
@@ -562,7 +573,7 @@ class PlayerController(private val context: Context, private val model: AppModel
         val exclude = queue.items.filter { it.platform == seed.platform }.map { it.sourceId } + autoplayPlayed
         val seeds = queue.autoplaySeeds()
         val station = autoplayStation
-        _state.update { it.copy(autoplayLoading = true) }
+        _state.update { it.copy(autoplay = AutoplayStatus.Loading) }
         val job = scope.async {
             val result = runCatching { client.continuation(seed.platform, seed.sourceId, seeds, station, exclude) }.getOrNull()
                 ?: return@async -1
@@ -575,8 +586,13 @@ class PlayerController(private val context: Context, private val model: AppModel
         }
         autoplayJob = job
         val added = job.await()
-        _state.update { it.copy(autoplayLoading = false) }
-        if (added < 0 && force) model.show(context.getString(R.string.autoplay_unavailable))
+        val status = when {
+            added < 0 -> AutoplayStatus.Error
+            added == 0 && queue.autoplay -> AutoplayStatus.Empty
+            added == 0 -> AutoplayStatus.Idle
+            else -> AutoplayStatus.Ready
+        }
+        _state.update { it.copy(autoplay = status) }
         return added.coerceAtLeast(0)
     }
 
@@ -623,7 +639,7 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     @Serializable
-    private data class Saved(val queue: PlayQueue, val position: Long)
+    private data class Saved(val queue: PlayQueue, val position: Long, val source: QueueSource? = null)
 
     private fun restore() {
         val saved = runCatching { MHubJson.decodeFromString(Saved.serializer(), stateFile.readText()) }.getOrNull() ?: return
@@ -631,6 +647,7 @@ class PlayerController(private val context: Context, private val model: AppModel
         _state.update {
             it.copy(
                 queue = saved.queue,
+                source = saved.source,
                 phase = if (saved.queue.current == null) Phase.Idle else Phase.Paused,
                 durationMs = saved.queue.current?.durationMs ?: 0,
                 // The quality the restored song will load in.
@@ -648,7 +665,7 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     fun persistNow() {
-        val saved = Saved(queue, positionMs)
+        val saved = Saved(queue, positionMs, _state.value.source)
         runCatching { stateFile.writeText(MHubJson.encodeToString(Saved.serializer(), saved)) }
     }
 }
