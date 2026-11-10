@@ -13,11 +13,16 @@
 └─ 搜索      平台选择 + 搜索框 + 结果列表
 迷你播放器  贴在标签栏上方，所有根页面可见
 全屏播放器  从迷你播放器展开：封面／歌词／待播清单三种视图
+            宽屏（宽 ≥ 820pt 且横向：iPad 横屏、拉宽的 Mac 窗口）按 Apple Music Mac 版左右各半：左半居中一列
+            封面、标题、进度、控制（两端加随机与重复），右半是歌词或待播清单，不再替换封面；音量在右上角，
+            隔空播放／歌词／待播清单在右下角。进入宽屏时自动在右栏打开歌词（没有歌词则待播清单），用户关掉后
+            左列在整窗居中。宽屏和 Mac 上左上角有「收起」按钮（下滑手势不明显，Mac 上没有）。
+            （目前 iOS／Mac 已实现）
 设置        三个根页面右上角的头像按钮都能进入：账号、服务器、音质、平台、歌词、外观、缓存、关于；
             全屏播放器「…」菜单的「歌词与外观…」直接打开歌词和外观两组
 ```
 
-| 元素 | iOS（SwiftUI，iOS 26+） | Android（Glasmio，API 33+） |
+| 元素 | iOS（SwiftUI，iOS／iPadOS 16+；液态玻璃与标签栏附件需 iOS 26，之前用材质模糊、系统按钮样式和标签栏上方的迷你播放条；缩放转场、流动渐变背景需 iOS 18，横向货架按页吸附需 iOS 17） | Android（Glasmio，API 33+） |
 | --- | --- | --- |
 | 标签栏 | `TabView` + `Tab`，搜索用 `Tab(role: .search)`；`.tabBarMinimizeBehavior(.onScrollDown)` | `GlasmioNavigationBarWithTrailingItem`，搜索是独立的尾部胶囊；滚动收缩由 `rememberGlasmioNavigationScrollState` 驱动 |
 | 迷你播放器 | `.tabViewBottomAccessory`（系统液态玻璃附件，随标签栏收缩切换 inline） | `GlassSurface` 胶囊，贴在导航栏上方 8 dp，随导航栏收缩 |
