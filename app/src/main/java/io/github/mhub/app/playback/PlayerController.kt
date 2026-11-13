@@ -29,6 +29,7 @@ import io.github.mhub.core.QueueAdvance
 import io.github.mhub.core.RepeatMode
 import io.github.mhub.core.Track
 import io.github.mhub.core.enriched
+import io.github.mhub.core.MHubClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -139,6 +140,14 @@ class PlayerController(private val context: Context, private val model: AppModel
     private val stateFile = File(context.filesDir, "playback.json")
 
     init {
+        // Connections opened on the previous network (Wi-Fi ↔ mobile data) are
+        // dead; without this, requests reuse them and hang until they time out.
+        context.getSystemService(android.net.ConnectivityManager::class.java)?.registerDefaultNetworkCallback(
+            object : android.net.ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: android.net.Network) = MHubClient.defaultHttp.connectionPool.evictAll()
+                override fun onLost(network: android.net.Network) = MHubClient.defaultHttp.connectionPool.evictAll()
+            },
+        )
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) = refreshPhase()
             override fun onPlaybackStateChanged(playbackState: Int) {
@@ -333,7 +342,7 @@ class PlayerController(private val context: Context, private val model: AppModel
         }
         loadJob = scope.launch {
             try {
-                val (item, entry) = makeItem(track, quality, policy)
+                val (item, entry) = makeItemRetrying(track, quality, policy, generation)
                 if (generation != this@PlayerController.generation) return@launch
                 entries[item.mediaId] = entry
                 currentId = item.mediaId
@@ -357,6 +366,25 @@ class PlayerController(private val context: Context, private val model: AppModel
                 val message = error.message ?: context.getString(R.string.preparing)
                 _state.update { it.copy(phase = Phase.Failed, error = message) }
                 model.show(message)
+            }
+        }
+    }
+
+    /**
+     * A network failure (timeout, connection reset, often a stale connection
+     * after switching between Wi-Fi and mobile data) is retried a few times
+     * before the song is reported as failed; server answers are not retried.
+     */
+    private suspend fun makeItemRetrying(track: Track, quality: Quality, rateLimit: RateLimitPolicy, generation: Int): Pair<MediaItem, Entry> {
+        var attempt = 0
+        while (true) {
+            try {
+                return makeItem(track, quality, rateLimit)
+            } catch (error: java.io.IOException) {
+                if (attempt >= NETWORK_RETRY_MS.size || generation != this.generation) throw error
+                withContext(Dispatchers.IO) { MHubClient.defaultHttp.connectionPool.evictAll() }
+                delay(NETWORK_RETRY_MS[attempt++])
+                if (generation != this.generation) throw CancellationException("superseded")
             }
         }
     }
@@ -595,7 +623,10 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     private fun itemEnded() {
-        if (prefetchedId != null) return
+        // Only a song that actually played can end. Clearing the player after a
+        // failed load also reports "ended"; treating that as the end of a song
+        // skipped on through the queue, one failure after another.
+        if (prefetchedId != null || currentId == null) return
         advance(manual = false)
     }
 
@@ -766,5 +797,6 @@ class PlayerController(private val context: Context, private val model: AppModel
 
     private companion object {
         const val MAX_CONSECUTIVE_FAILURES = 5
+        val NETWORK_RETRY_MS = longArrayOf(1_000, 3_000, 8_000)
     }
 }

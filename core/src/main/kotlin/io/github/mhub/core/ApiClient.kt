@@ -72,6 +72,9 @@ class MHubClient(
         val defaultHttp: OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            // HTTP/2 pings find a dead connection (after a network switch) in
+            // seconds; otherwise every request on it waits out its timeout.
+            .pingInterval(10, TimeUnit.SECONDS)
             .build()
 
         /** Parses a user-entered address; a missing scheme defaults to https. */
