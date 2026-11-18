@@ -14,7 +14,6 @@ class HomeStore {
     var home by mutableStateOf<RecommendationHome?>(null)
     var error by mutableStateOf<String?>(null)
     var loading by mutableStateOf(false)
-    var selectedTag by mutableStateOf("")
     var seen by mutableStateOf(listOf<String>())
     private var server: String? = null
 
@@ -23,7 +22,6 @@ class HomeStore {
         if (server != null) {
             home = null
             error = null
-            selectedTag = ""
             seen = emptyList()
         }
         server = address

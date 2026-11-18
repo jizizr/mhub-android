@@ -54,7 +54,6 @@ import io.github.neoruaa.glasmio.icons.SfIcon
 import io.github.neoruaa.glasmio.icons.SfSymbol
 import io.github.neoruaa.glasmio.scaffold.GlasmioPinnedListPage
 import io.github.neoruaa.glasmio.ui.GlasmioIconButton
-import io.github.neoruaa.glasmio.ui.GlasmioScrollableTabRow
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,7 +69,6 @@ fun HomeScreen(listState: LazyListState) {
     var home by store::home
     var error by store::error
     var loading by store::loading
-    var selectedTag by store::selectedTag
     var seen by store::seen
 
     fun load(refresh: Boolean) {
@@ -107,17 +105,8 @@ fun HomeScreen(listState: LazyListState) {
         val data = home
         when {
             data != null -> {
-                if (data.tags.isNotEmpty()) item("tags") {
-                    // Same as iOS: tags filter the playlists; tapping the chosen tag again clears it.
-                    GlasmioScrollableTabRow(
-                        items = data.tags.map { it.id to it.label },
-                        selected = selectedTag,
-                        onSelected = { selectedTag = if (it == selectedTag) "" else it },
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    )
-                }
-                val tag = data.tags.firstOrNull { it.id == selectedTag }
-                val playlists = if (tag == null) data.playlists else data.playlists.filter { it.id in tag.playlistIds }
+                // Every recommended playlist, as on iOS; the server's mood tags are not shown.
+                val playlists = data.playlists
                 if (playlists.isNotEmpty()) item("playlists") {
                     Section(stringResource(R.string.recommended_playlists)) {
                         LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -132,7 +121,7 @@ fun HomeScreen(listState: LazyListState) {
                 if (data.tracks.isNotEmpty()) item("songs") {
                     val tracks = data.tracks.map { it.track }
                     Section(stringResource(R.string.recommended_songs), trailing = {
-                        val sourceName = stringResource(R.string.casual_listening, tag?.label ?: stringResource(R.string.made_for_you))
+                        val sourceName = stringResource(R.string.casual_listening, stringResource(R.string.made_for_you))
                         PlainIconButton(onClick = {
                             graph.player.play(tracks, source = io.github.mhub.core.QueueSource(io.github.mhub.core.QueueSource.RECOMMENDATION, sourceName))
                         }) { SfIcon(SfSymbol.PlayFilled, stringResource(R.string.play)) }
