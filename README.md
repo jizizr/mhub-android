@@ -2,7 +2,7 @@
 
 [MHub](https://github.com/jizizr/mhub) 的 Android 客户端（Jetpack Compose + [Glasmio](https://github.com/NEORUAA/Glasmio)，Android 13+）。连接自托管的 MHub 服务端，操作逻辑与网页版、[iOS 版](https://github.com/jizizr/mhub-ios)一致，界面使用液态玻璃标签栏与迷你播放器，参照 Apple Music 的设计语言。
 
-## 安装 Beta
+## 安装
 
 在 [Releases](https://github.com/jizizr/mhub-android/releases) 下载 `MHub-<版本>.apk` 直接安装；之后的版本使用同一签名，可覆盖升级。首次启动填写服务端地址。
 
@@ -28,7 +28,7 @@ docs/                两端共同的交互规范与接口契约 —— 与 mhub-
 
 ## 发布
 
-推送 `v*` 标签（如 `v0.1.0-beta.2`）触发 `release.yml`：跑单测、构建签名 Release APK、校验签名并创建 GitHub Release（带后缀的标签为预发布）。签名只来自仓库 Secrets：`MHUB_KEYSTORE_BASE64`、`MHUB_KEYSTORE_PASSWORD`、`MHUB_KEY_ALIAS`、`MHUB_KEY_PASSWORD`；本地构建 Release 时用同名环境变量（`MHUB_KEYSTORE_FILE` 指向 keystore）。密钥库不入库，丢失后用户将无法覆盖升级，务必备份。
+推送 `v*` 标签（如 `v0.1.0`、`v0.1.1-beta.1`）触发 `release.yml`：跑单测、构建签名 Release APK、校验签名并创建 GitHub Release（带后缀的标签为预发布）。签名只来自仓库 Secrets：`MHUB_KEYSTORE_BASE64`、`MHUB_KEYSTORE_PASSWORD`、`MHUB_KEY_ALIAS`、`MHUB_KEY_PASSWORD`；本地构建 Release 时用同名环境变量（`MHUB_KEYSTORE_FILE` 指向 keystore）。密钥库不入库，丢失后用户将无法覆盖升级，务必备份。
 
 ## 与 iOS 保持一致
 
