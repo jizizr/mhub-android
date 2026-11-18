@@ -44,7 +44,17 @@ enum class Quality(val label: String) {
 }
 
 @Serializable
-data class PlatformInfo(val id: String, val label: String) {
+data class PlatformInfo(
+    val id: String,
+    val label: String,
+    /** Catalog search sections; empty from servers that predate them. */
+    val catalog: List<String> = emptyList(),
+) {
+    /** Album pages (and「前往专辑」) exist on this platform. */
+    val hasAlbums: Boolean get() = CatalogSection.Albums.wire in catalog
+    /** Artist pages (and「前往艺人」) exist on this platform. */
+    val hasArtists: Boolean get() = CatalogSection.Artists.wire in catalog
+
     companion object {
         val fallback = listOf(
             PlatformInfo("applemusic", "Apple Music"),
@@ -233,6 +243,9 @@ data class QueueSource(
         const val PLAYLIST = "playlist"
         const val COLLECTION = "collection"
         const val RECOMMENDATION = "recommendation"
+        /** An album or artist page; `id` and `platform` reopen it. */
+        const val ALBUM = "album"
+        const val ARTIST = "artist"
     }
 }
 

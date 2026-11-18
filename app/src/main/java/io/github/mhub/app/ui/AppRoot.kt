@@ -93,6 +93,9 @@ enum class Tab { Home, Library, Search }
 sealed interface Route {
     data class Playlist(val id: String) : Route
     data class Collection(val platform: String, val url: String, val title: String, val cover: String) : Route
+    /** An album page; opened from a song it has no id yet and finds it through the song's track info. */
+    data class Album(val platform: String, val id: String, val trackId: String = "", val title: String = "", val cover: String = "") : Route
+    data class Artist(val platform: String, val id: String, val trackId: String = "", val title: String = "", val cover: String = "") : Route
     data object Settings : Route
     data object Cache : Route
 }
@@ -133,6 +136,9 @@ private fun <T> pushSpring(visibilityThreshold: T? = null) = spring(dampingRatio
 val LocalSharedScope = staticCompositionLocalOf<SharedTransitionScope?> { null }
 
 val LocalNavigator = staticCompositionLocalOf<Navigator> { error("No navigator") }
+
+/** Pushes a page on the current tab, closing the full player first (song menus, player links). */
+val LocalOpenPage = staticCompositionLocalOf<(Route) -> Unit> { {} }
 val LocalGraph = staticCompositionLocalOf<AppGraph> { error("No graph") }
 
 /** Space the bottom chrome (mini player and tab bar) covers; pages pad their lists with it. */
@@ -194,7 +200,8 @@ private fun MainScaffold() {
     }
 
     SharedTransitionLayout {
-    CompositionLocalProvider(LocalNavigator provides navigator, LocalBottomChrome provides bottomChrome, LocalSharedScope provides this) {
+    val openPage: (Route) -> Unit = remember(navigator) { { route -> fullPlayer = false; navigator.push(route) } }
+    CompositionLocalProvider(LocalNavigator provides navigator, LocalBottomChrome provides bottomChrome, LocalSharedScope provides this, LocalOpenPage provides openPage) {
         Box(Modifier.fillMaxSize()) {
             // Page layer, recorded once so the bottom chrome can refract it.
             Box(
@@ -236,6 +243,8 @@ private fun MainScaffold() {
                                     }
                                     is Route.Playlist -> PlaylistScreen(route.id)
                                     is Route.Collection -> CollectionScreen(route)
+                                    is Route.Album -> io.github.mhub.app.ui.catalog.AlbumScreen(route)
+                                    is Route.Artist -> io.github.mhub.app.ui.catalog.ArtistScreen(route)
                                     Route.Settings -> SettingsScreen()
                                     Route.Cache -> CacheScreen()
                                 }

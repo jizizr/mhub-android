@@ -1,0 +1,23 @@
+{
+  "platform": "bilibili",
+  "sections": [
+    "songs"
+  ],
+  "top": [],
+  "artists": [],
+  "albums": [],
+  "songs": [
+    {
+      "type": "song",
+      "platform": "bilibili",
+      "id": "BV1BZbSzZEGT",
+      "title": "晴天",
+      "subtitle": "某 UP 主",
+      "cover": "https://example.test/bili.jpg",
+      "album": "",
+      "release_date": "",
+      "url": ""
+    }
+  ],
+  "playlists": []
+}

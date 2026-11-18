@@ -118,6 +118,18 @@ class MHubClient(
     suspend fun search(platform: String, query: String, limit: Int = 20): List<Track> =
         get<List<SearchItem>>("/api/v1/search", mapOf("platform" to platform, "q" to query, "limit" to "$limit")).map { it.track }
 
+    /** Songs, albums, artists and playlists in the platform's sections. */
+    suspend fun catalogSearch(platform: String, query: String, limit: Int = 20): CatalogSearch =
+        get("/api/v1/catalog/search", mapOf("platform" to platform, "q" to query, "limit" to "$limit"))
+
+    suspend fun album(platform: String, id: String): AlbumDetail = get("/api/v1/albums/${segment(platform)}/${segment(id)}")
+
+    suspend fun artist(platform: String, id: String): ArtistDetail = get("/api/v1/artists/${segment(platform)}/${segment(id)}")
+
+    suspend fun trackInfo(platform: String, id: String): TrackInfo = get("/api/v1/tracks/${segment(platform)}/${segment(id)}")
+
+    private fun segment(value: String): String = java.net.URLEncoder.encode(value, Charsets.UTF_8).replace("+", "%20")
+
     suspend fun home(platform: String = "applemusic", limit: Int = 40, refresh: Boolean = false, exclude: List<String> = emptyList()): RecommendationHome {
         val query = linkedMapOf("platform" to platform, "limit" to "$limit")
         if (refresh) query["refresh"] = "true"

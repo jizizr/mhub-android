@@ -29,6 +29,20 @@ class QueueCasesTest {
 
     private fun repeat(value: String?) = when (value) { "all" -> RepeatMode.All; "one" -> RepeatMode.One; else -> RepeatMode.Off }
 
+    /** A song picked in an album stays first under shuffle; the rest is shuffled behind it. */
+    @Test fun replaceKeepingTheStartShufflesBehindIt() {
+        val tracks = listOf("a", "b", "c", "d", "e").map(::track)
+        repeat(20) { seed ->
+            val queue = PlayQueue().replace(tracks, start = 2, shuffle = true, keepStart = true, random = Random(seed))
+            assertEquals(0, queue.index)
+            assertEquals("c", queue.current?.sourceId)
+            assertEquals(setOf("a", "b", "c", "d", "e"), queue.items.map { it.sourceId }.toSet())
+        }
+        val ordered = PlayQueue().replace(tracks, start = 2, shuffle = false, keepStart = true)
+        assertEquals(2, ordered.index)
+        assertEquals(listOf("a", "b", "c", "d", "e"), ordered.items.map { it.sourceId })
+    }
+
     @Test fun sharedCases() {
         val cases = MHubJson.parseToJsonElement(File(Contract.root, "queue-cases.json").readText()).jsonObject["cases"]!!.jsonArray
         assertTrue(cases.size >= 30)

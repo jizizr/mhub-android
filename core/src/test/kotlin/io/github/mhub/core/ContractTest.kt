@@ -27,7 +27,47 @@ class ContractTest {
         val collection = MHubJson.decodeFromString(Collection.serializer(), Contract.fixture("collection.json"))
         assertEquals("热歌榜", collection.title)
         val platforms = MHubJson.decodeFromString(ListSerializer(PlatformInfo.serializer()), Contract.fixture("platforms.json"))
-        assertEquals(listOf("applemusic", "netease", "tencent"), platforms.map { it.id })
+        assertEquals(listOf("applemusic", "netease", "tencent", "bilibili"), platforms.map { it.id })
+        assertTrue(platforms[0].hasAlbums && platforms[0].hasArtists)
+        assertTrue(platforms[2].hasAlbums && !platforms[2].hasArtists)
+        assertTrue(!platforms[3].hasAlbums)
+        // Servers before catalog search list no sections.
+        val old = MHubJson.decodeFromString(PlatformInfo.serializer(), """{"id":"netease","label":"网易云音乐"}""")
+        assertTrue(old.catalog.isEmpty() && !old.hasAlbums)
+    }
+
+    @Test fun catalogSearchSections() {
+        val found = MHubJson.decodeFromString(CatalogSearch.serializer(), Contract.fixture("catalog-search.json"))
+        assertEquals(CatalogSection.entries.toList(), found.visibleSections)
+        assertEquals(listOf(CatalogItem.ARTIST, CatalogItem.SONG), found.top.map { it.type })
+        val song = found.songs[0].track
+        assertEquals("applemusic:536115195", song.id)
+        assertEquals("七里香", song.album)
+        assertEquals(297_200L, song.durationMs)
+        assertEquals("2001 · 周杰伦", found.albums[0].cardSubtitle(withKind = false))
+        assertEquals("专辑 · 周杰伦", found.albums[0].cardSubtitle(withKind = true))
+        assertTrue(found.playlists[0].url.startsWith("https://music.apple.com/"))
+        val songsOnly = MHubJson.decodeFromString(CatalogSearch.serializer(), Contract.fixture("catalog-search-songs-only.json"))
+        assertTrue(songsOnly.visibleSections.isEmpty())
+        assertEquals(1, songsOnly.songs.size)
+    }
+
+    @Test fun albumArtistAndTrackInfo() {
+        val album = MHubJson.decodeFromString(AlbumDetail.serializer(), Contract.fixture("album.json"))
+        assertEquals("300117743", album.artistId)
+        assertEquals(listOf(1, 2), album.discs.map { it.disc })
+        assertEquals(listOf(1, 2), album.discs[0].tracks.map { it.value.trackNumber })
+        assertEquals(listOf(2), album.discs[1].tracks.map { it.index })
+        assertEquals(listOf("2001年9月14日", "3 首歌曲，12 分钟", "℗ 2001 JVR MUSIC INTERNATIONAL LTD."), album.footer)
+        val artist = MHubJson.decodeFromString(ArtistDetail.serializer(), Contract.fixture("artist.json"))
+        assertEquals("七里香", artist.topSongs.first().track.album)
+        assertEquals(1, artist.albums.size)
+        assertEquals(1, artist.singles.size)
+        val info = MHubJson.decodeFromString(TrackInfo.serializer(), Contract.fixture("track-info.json"))
+        assertEquals("003DFRzD192KKD", info.albumId)
+        assertTrue(info.artistId.isEmpty())
+        assertEquals("2004年", AlbumDetail.releaseText("2004"))
+        assertEquals("", AlbumDetail.summary(emptyList()))
     }
 
     @Test fun progressiveStreamingIsPlayable() {

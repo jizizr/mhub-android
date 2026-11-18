@@ -1,0 +1,106 @@
+{
+  "platform": "applemusic",
+  "sections": [
+    "top",
+    "artists",
+    "albums",
+    "songs",
+    "playlists"
+  ],
+  "top": [
+    {
+      "type": "artist",
+      "platform": "applemusic",
+      "id": "300117743",
+      "title": "周杰伦",
+      "subtitle": "",
+      "cover": "https://example.test/artist/600x600bb.jpg",
+      "album": "",
+      "release_date": "",
+      "url": ""
+    },
+    {
+      "type": "song",
+      "platform": "applemusic",
+      "id": "536115195",
+      "title": "七里香",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/536115195/1200x1200bb.jpg",
+      "album": "七里香",
+      "release_date": "",
+      "url": "",
+      "duration_ms": 297200,
+      "track_number": 2,
+      "disc_number": 1
+    }
+  ],
+  "artists": [
+    {
+      "type": "artist",
+      "platform": "applemusic",
+      "id": "300117743",
+      "title": "周杰伦",
+      "subtitle": "",
+      "cover": "https://example.test/artist/600x600bb.jpg",
+      "album": "",
+      "release_date": "",
+      "url": ""
+    }
+  ],
+  "albums": [
+    {
+      "type": "album",
+      "platform": "applemusic",
+      "id": "535739206",
+      "title": "范特西",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/album/600x600bb.jpg",
+      "album": "",
+      "release_date": "2001-09-14",
+      "url": "https://music.apple.com/cn/album/%E8%8C%83%E7%89%B9%E8%A5%BF/535739206"
+    }
+  ],
+  "songs": [
+    {
+      "type": "song",
+      "platform": "applemusic",
+      "id": "536115195",
+      "title": "七里香",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/536115195/1200x1200bb.jpg",
+      "album": "七里香",
+      "release_date": "",
+      "url": "",
+      "duration_ms": 297200,
+      "track_number": 2,
+      "disc_number": 1
+    },
+    {
+      "type": "song",
+      "platform": "applemusic",
+      "id": "536115173",
+      "title": "晴天",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/536115173/1200x1200bb.jpg",
+      "album": "叶惠美",
+      "release_date": "",
+      "url": "",
+      "duration_ms": 269000,
+      "track_number": 3,
+      "disc_number": 1
+    }
+  ],
+  "playlists": [
+    {
+      "type": "playlist",
+      "platform": "applemusic",
+      "id": "pl.d467987f72384448b2bebe52c0b212d6",
+      "title": "周杰伦代表作",
+      "subtitle": "Apple Music 国语流行",
+      "cover": "https://example.test/playlist/600x600bb.jpg",
+      "album": "",
+      "release_date": "",
+      "url": "https://music.apple.com/cn/playlist/pl.d467987f72384448b2bebe52c0b212d6"
+    }
+  ]
+}

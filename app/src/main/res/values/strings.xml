@@ -20,6 +20,17 @@
     <string name="search_prompt">歌曲、艺人</string>
     <string name="search_empty">没有找到相关歌曲</string>
     <string name="search_hint">搜索或选择一首音乐</string>
+    <string name="go_to_album">前往专辑</string>
+    <string name="go_to_artist">前往艺人</string>
+    <string name="top_songs">热门歌曲</string>
+    <string name="albums">专辑</string>
+    <string name="singles_and_eps">单曲与 EP</string>
+    <string name="songs">歌曲</string>
+    <string name="disc">碟 %1$d</string>
+    <string name="page_load_failed">暂时无法打开</string>
+    <string name="no_album_found">没有找到这首歌所在的专辑</string>
+    <string name="no_artist_found">没有找到这首歌的艺人页</string>
+    <string name="saved_to_library">已添加“%1$s”，共 %2$d 首</string>
     <string name="close_search">取消搜索</string>
     <!-- Library -->
     <string name="playlists">歌单</string>
@@ -174,6 +185,8 @@
     <string name="queue_count">%1$d 首音乐</string>
     <string name="source_playlist">来自歌单：%1$s</string>
     <string name="source_recommendation">来自推荐：%1$s</string>
+    <string name="source_album">来自专辑：%1$s</string>
+    <string name="source_artist">来自艺人：%1$s</string>
     <string name="clear_queue">清空队列</string>
     <string name="clear_queue_confirm">清空当前播放队列？正在播放的歌曲也会停止。</string>
     <string name="clear">清空</string>

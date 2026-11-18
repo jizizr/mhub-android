@@ -10,7 +10,10 @@ iOS 与 Android 客户端只依赖下面这些接口和字段。改动这些字�
 | --- | --- | --- |
 | 连接检查 | `GET /health` | `{"status":"ok","service":"..."}` |
 | 平台列表 | `GET /api/v1/platforms` | `platforms.json` |
-| 搜索 | `GET /api/v1/search?platform=&q=&limit=` | `search.json` |
+| 分类搜索 | `GET /api/v1/catalog/search?platform=&q=&limit=` | `catalog-search.json`、`catalog-search-songs-only.json` |
+| 专辑页 | `GET /api/v1/albums/:platform/:id` | `album.json` |
+| 艺人页 | `GET /api/v1/artists/:platform/:id` | `artist.json` |
+| 歌曲信息（找所在专辑、艺人） | `GET /api/v1/tracks/:platform/:id` | `track-info.json` |
 | 首页推荐 | `GET /api/v1/recommendations/home?platform=applemusic&limit=40[&refresh=true][&exclude=id,id]` | `recommendation-home.json` |
 | 自动续播 | `POST /api/v1/recommendations/continue`，JSON `{platform, seed_id, seed_ids, station?, exclude, limit}` | `continuation.json` |
 | 歌单／专辑 | `GET /api/v1/collections/resolve?platform=&url=` | `collection.json` |
@@ -18,6 +21,17 @@ iOS 与 Android 客户端只依赖下面这些接口和字段。改动这些字�
 | 创建播放任务 | `POST /api/v1/playbacks`，JSON `{platform, query, selected_id, quality, include_cover:false}` | `playback-streaming.json` |
 | 等待任务状态 | `GET /api/v1/playbacks/:id?since=<当前状态>&wait_ms=15000` | `playback-*.json` |
 | 音频 | 任务里的 `audio_url` | 音频字节，支持 Range |
+
+旧的 `GET /api/v1/search`（`search.json`，只有歌曲）仍保留给旧版本客户端。
+
+### 分类搜索、专辑与艺人
+
+- `platforms.json` 的 `catalog` 是该平台搜索能填的分区，按标签顺序：`top`（最佳结果）、`artists`、`albums`、`songs`、`playlists`。只有 `songs` 的平台（Bilibili、YouTube Music）没有专辑页和艺人页，搜索页不显示分类标签；`catalog` 含 `albums` 才显示「前往专辑」，含 `artists` 才显示「前往艺人」。旧服务端没有这个字段，按空列表处理（不显示）。
+- 搜索结果的五个分区都是同一种条目：`type` 为 `song`／`album`／`artist`／`playlist`，`title` 是歌名／专辑名／艺人名／歌单名，`subtitle` 是歌手／专辑艺人／歌单作者（艺人为空）。歌曲还有 `album`、`duration_ms`；专辑有 `release_date`（`YYYY-MM-DD` 或 `YYYY`）；专辑和歌单的 `url` 可直接交给 `collections/resolve`（存为资料库歌单时作为来源链接）。按 `sections` 中有结果的分区显示标签；`top` 由平台排序（Apple Music）或服务端按「同名艺人、同名专辑、前几首歌」合成。
+- 专辑页的 `tracks` 是按碟、曲序排好的歌曲条目，带 `track_number`、`disc_number`；只有一张碟时不分组。`artist_id` 为空表示该平台没有艺人页（QQ 音乐）。页脚显示发行日期、`N 首歌曲，M 分钟` 和 `copyright`。
+- 艺人页：`top_songs`（热门歌曲）、`albums`（专辑）、`singles`（单曲与 EP，可能为空）。
+- 正在播放或列表里的歌曲没有专辑 ID：「前往专辑／艺人」先请求 `tracks/:platform/:id` 取 `album_id`／`artist_id`，再打开对应页面；为空时提示没有找到。
+- 在专辑页点歌曲：以整张专辑建立队列、从这首开始播放（随机模式下这首仍在最前），队列来源为专辑，`resource_type` 记为专辑；艺人页点热门歌曲同理，以热门歌曲为队列。
 
 原生客户端**不传** `streaming_mode`。`wasm_alac` 只属于网页的 WASM 解码器；原生端用系统解码器（AVFoundation／MediaCodec）。
 

@@ -70,6 +70,11 @@ class AppModel(val settings: Settings) {
 
     fun label(platform: String) = _platforms.value.firstOrNull { it.id == platform }?.label ?: PlatformInfo.label(platform)
 
+    /** Album pages (「前往专辑」) exist on this platform. */
+    fun hasAlbums(platform: String) = _platforms.value.firstOrNull { it.id == platform }?.hasAlbums == true
+    /** Artist pages (「前往艺人」) exist on this platform. */
+    fun hasArtists(platform: String) = _platforms.value.firstOrNull { it.id == platform }?.hasArtists == true
+
     fun recordRecent(track: Track) {
         val list = (listOf(track.chosen) + _recent.value.filter { it.id != track.id }).take(30)
         _recent.value = list

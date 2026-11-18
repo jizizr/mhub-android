@@ -292,6 +292,22 @@ private fun LargeArtwork(cover: String?, playing: Boolean, shared: Modifier = Mo
     )
 }
 
+/** The artist opens their page where the platform has one, as in Apple Music. */
+@Composable
+private fun ArtistLine(track: io.github.mhub.core.Track?, size: Int) {
+    val graph = LocalGraph.current
+    val openPage = io.github.mhub.app.ui.LocalOpenPage.current
+    graph.model.platforms.collectAsStateWithLifecycle().value
+    val link = track != null && graph.model.hasArtists(track.platform)
+    Text(
+        track?.artist.orEmpty(),
+        color = Color.White.copy(alpha = 0.6f), fontSize = size.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        modifier = if (link && track != null) Modifier.clickable {
+            openPage(io.github.mhub.app.ui.Route.Artist(track.platform, "", trackId = track.sourceId, title = track.artist))
+        } else Modifier,
+    )
+}
+
 @Composable
 private fun TitleRow() {
     val graph = LocalGraph.current
@@ -300,7 +316,7 @@ private fun TitleRow() {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(track?.title ?: stringResource(R.string.not_playing), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track?.artist.orEmpty(), color = Color.White.copy(alpha = 0.6f), fontSize = 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            ArtistLine(track, 20)
         }
         if (track != null) {
             GlassSurface(sampleBackdrop = false, modifier = Modifier.size(32.dp), shape = ContinuousCapsule) { TrackMenu(listOf(track), tint = Color.White, inPlayer = true) }
@@ -318,7 +334,7 @@ private fun CompactHeader(artwork: Modifier = Modifier, onClick: () -> Unit) {
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(track?.title.orEmpty(), color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track?.artist.orEmpty(), color = Color.White.copy(alpha = 0.6f), fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            ArtistLine(track, 15)
         }
         if (track != null) {
             GlassSurface(sampleBackdrop = false, modifier = Modifier.size(32.dp), shape = ContinuousCapsule) { TrackMenu(listOf(track), tint = Color.White, inPlayer = true) }

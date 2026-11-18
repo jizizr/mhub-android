@@ -187,9 +187,10 @@ class PlayerController(private val context: Context, private val model: AppModel
     }
 
     /** "播放" / "随机播放" on a list: replaces the queue. */
-    fun play(tracks: List<Track>, start: Int = 0, shuffle: Boolean? = null, source: QueueSource? = null) {
+    /** "播放" / "随机播放" on a list; `keepStart` plays the picked song first even with shuffle on. */
+    fun play(tracks: List<Track>, start: Int = 0, shuffle: Boolean? = null, keepStart: Boolean = false, source: QueueSource? = null) {
         if (tracks.isEmpty()) return
-        setQueue(queue.replace(tracks, start, shuffle))
+        setQueue(queue.replace(tracks, start, shuffle, keepStart))
         _state.update { it.copy(source = source) }
         resetAutoplayStation()
         load()

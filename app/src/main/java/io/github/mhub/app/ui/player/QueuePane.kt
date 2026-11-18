@@ -87,7 +87,15 @@ fun QueuePane(modifier: Modifier = Modifier, onDismissPlayer: () -> Unit) {
                 state.source?.let { source ->
                     Text(" · ", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
                     Text(
-                        stringResource(if (source.isRecommendation) R.string.source_recommendation else R.string.source_playlist, source.name),
+                        stringResource(
+                            when (source.type) {
+                                QueueSource.RECOMMENDATION -> R.string.source_recommendation
+                                QueueSource.ALBUM -> R.string.source_album
+                                QueueSource.ARTIST -> R.string.source_artist
+                                else -> R.string.source_playlist
+                            },
+                            source.name,
+                        ),
                         color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.clickable { openSource(source, graph, navigator, onDismissPlayer) },
                     )
@@ -136,6 +144,8 @@ private fun openSource(source: QueueSource, graph: io.github.mhub.app.AppGraph, 
             navigator.open(Tab.Library, Route.Playlist(source.id))
         }
         QueueSource.COLLECTION -> navigator.open(Tab.Home, Route.Collection(source.platform, source.url, source.name, source.cover))
+        QueueSource.ALBUM -> navigator.push(Route.Album(source.platform, source.id, title = source.name, cover = source.cover))
+        QueueSource.ARTIST -> navigator.push(Route.Artist(source.platform, source.id, title = source.name, cover = source.cover))
         else -> navigator.open(Tab.Home)
     }
     onDismissPlayer()

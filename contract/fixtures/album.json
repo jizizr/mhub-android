@@ -1,0 +1,56 @@
+{
+  "platform": "applemusic",
+  "id": "535739206",
+  "title": "范特西",
+  "artist": "周杰伦",
+  "artist_id": "300117743",
+  "cover": "https://example.test/album/1200x1200bb.jpg",
+  "release_date": "2001-09-14",
+  "genre": "国语流行",
+  "copyright": "℗ 2001 JVR MUSIC INTERNATIONAL LTD.",
+  "url": "https://music.apple.com/cn/album/%E8%8C%83%E7%89%B9%E8%A5%BF/535739206",
+  "tracks": [
+    {
+      "type": "song",
+      "platform": "applemusic",
+      "id": "535739349",
+      "title": "爱在西元前",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/album/1200x1200bb.jpg",
+      "album": "范特西",
+      "release_date": "",
+      "url": "",
+      "track_number": 1,
+      "disc_number": 1,
+      "duration_ms": 234253
+    },
+    {
+      "type": "song",
+      "platform": "applemusic",
+      "id": "535739354",
+      "title": "爸我回来了",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/album/1200x1200bb.jpg",
+      "album": "范特西",
+      "release_date": "",
+      "url": "",
+      "track_number": 2,
+      "disc_number": 1,
+      "duration_ms": 233000
+    },
+    {
+      "type": "song",
+      "platform": "applemusic",
+      "id": "535739361",
+      "title": "简单爱",
+      "subtitle": "周杰伦",
+      "cover": "https://example.test/album/1200x1200bb.jpg",
+      "album": "范特西",
+      "release_date": "",
+      "url": "",
+      "track_number": 1,
+      "disc_number": 2,
+      "duration_ms": 270000
+    }
+  ]
+}

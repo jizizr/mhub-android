@@ -92,9 +92,22 @@ fun Artwork(url: String?, modifier: Modifier = Modifier, corner: Dp = 6.dp) {
     }
 }
 
-/** One song in a list. Tapping plays it now; the menu holds the other actions. */
+/**
+ * One song in a list. Tapping plays it now (or runs [onClick], as an album row
+ * playing its album does); the menu holds the other actions. Album tracks show
+ * their [number] instead of the artwork.
+ */
 @Composable
-fun TrackRow(track: Track, modifier: Modifier = Modifier, playlistId: String? = null, onRemove: (() -> Unit)? = null, separator: Boolean = false) {
+fun TrackRow(
+    track: Track,
+    modifier: Modifier = Modifier,
+    playlistId: String? = null,
+    onRemove: (() -> Unit)? = null,
+    separator: Boolean = false,
+    number: Int? = null,
+    showsArtist: Boolean = true,
+    onClick: (() -> Unit)? = null,
+) {
     val graph = LocalGraph.current
     // Each row only follows which song is current, not every player update.
     val playing by remember(track.id) { derivedStateOf { graph.player.currentTrackId.value == track.id } }
@@ -102,19 +115,24 @@ fun TrackRow(track: Track, modifier: Modifier = Modifier, playlistId: String? = 
     val separatorColor = colors.separator
     Row(
         modifier.fillMaxWidth()
-            .clickable { graph.player.playNow(track) }
+            .clickable { if (onClick != null) onClick() else graph.player.playNow(track) }
             // iOS plain-list separator: a hairline inset to the title.
             .drawBehind {
                 if (separator) {
                     val y = size.height - 0.5f
-                    drawLine(separatorColor, Offset(60.dp.toPx(), y), Offset(size.width, y), strokeWidth = 1f)
+                    drawLine(separatorColor, Offset((if (number != null) 40 else 60).dp.toPx(), y), Offset(size.width, y), strokeWidth = 1f)
                 }
             }
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Box {
+        if (number != null) {
+            Box(Modifier.width(28.dp).height(44.dp), contentAlignment = Alignment.Center) {
+                if (playing) SfIcon(SfSymbol.Waveform, null, tint = colors.accent, size = 18.dp)
+                else Text("$number", style = IosTypography.subheadline, color = colors.secondaryContent)
+            }
+        } else Box {
             Artwork(track.cover, Modifier.size(48.dp), corner = 5.dp)
             if (playing) {
                 Box(Modifier.size(48.dp).clip(ContinuousRoundedRectangle(5.dp)).background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
@@ -124,7 +142,7 @@ fun TrackRow(track: Track, modifier: Modifier = Modifier, playlistId: String? = 
         }
         Column(Modifier.weight(1f)) {
             Text(track.title, style = IosTypography.body, color = if (playing) colors.accent else colors.content, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track.artist, style = IosTypography.subheadline, color = colors.secondaryContent, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (showsArtist) Text(track.artist, style = IosTypography.subheadline, color = colors.secondaryContent, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         TrackMenu(listOf(track), playlistId = playlistId, onRemove = onRemove)
     }
@@ -142,6 +160,9 @@ fun TrackMenu(tracks: List<Track>, playlistId: String? = null, onRemove: (() -> 
     var displaySettings by remember { mutableStateOf(false) }
     val synced = inPlayer && graph.player.state.collectAsStateWithLifecycle().value.lyrics.isSynced
     val share = tracks.singleOrNull()?.let { track -> graph.settings.serverUrl?.let { Links.shareUrl(track, it) }?.let { track to it } }
+    val openPage = io.github.mhub.app.ui.LocalOpenPage.current
+    // Platforms come from a flow: read them here so the menu follows a refresh.
+    graph.model.platforms.collectAsStateWithLifecycle().value
     val removeLabel = stringResource(R.string.remove_from_playlist)
     val items = buildList {
         add(Triple(stringResource(R.string.play_next), "text.line.first.and.arrowtriangle.forward") { graph.player.playNext(tracks) })
@@ -154,6 +175,14 @@ fun TrackMenu(tracks: List<Track>, playlistId: String? = null, onRemove: (() -> 
                 val intent = Intent(Intent.ACTION_SEND).setType("text/plain")
                     .putExtra(Intent.EXTRA_TEXT, "${share.first.title} - ${share.first.artist} ${share.second}")
                 context.startActivity(Intent.createChooser(intent, shareTitle))
+            })
+        }
+        tracks.singleOrNull()?.let { track ->
+            if (graph.model.hasAlbums(track.platform)) add(Triple(stringResource(R.string.go_to_album), "square.stack") {
+                openPage(io.github.mhub.app.ui.Route.Album(track.platform, "", trackId = track.sourceId, title = track.album, cover = track.cover))
+            })
+            if (graph.model.hasArtists(track.platform)) add(Triple(stringResource(R.string.go_to_artist), "person.crop.circle") {
+                openPage(io.github.mhub.app.ui.Route.Artist(track.platform, "", trackId = track.sourceId, title = track.artist))
             })
         }
         if (synced) add(Triple(stringResource(R.string.share_lyrics_menu), "quote.bubble") { sharingLyrics = true })

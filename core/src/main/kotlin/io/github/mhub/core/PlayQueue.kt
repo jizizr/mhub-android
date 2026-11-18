@@ -60,13 +60,14 @@ data class PlayQueue(
     // Editing -------------------------------------------------------------
 
     /** "播放全部": replaces the queue. With shuffle on, a random song starts. */
-    fun replace(tracks: List<Track>, start: Int = 0, shuffle: Boolean? = null, random: Random = Random): PlayQueue {
+    fun replace(tracks: List<Track>, start: Int = 0, shuffle: Boolean? = null, keepStart: Boolean = false, random: Random = Random): PlayQueue {
         val wantsShuffle = shuffle ?: shuffled
         val list = tracks.map { it.chosen }.uniqued()
         if (list.isEmpty()) return copy(items = emptyList(), original = null, index = -1)
         val startTrack = tracks.getOrNull(start) ?: list[0]
         var next = copy(items = list, original = null, index = list.indexOfFirst { it.id == startTrack.id }.coerceAtLeast(0))
-        if (wantsShuffle) next = next.shuffleKeeping(random.nextInt(list.size), random).copy(index = 0)
+        // A song picked in an album stays first; otherwise shuffle starts anywhere.
+        if (wantsShuffle) next = next.shuffleKeeping(if (keepStart) next.index else random.nextInt(list.size), random).copy(index = 0)
         return next
     }
 
